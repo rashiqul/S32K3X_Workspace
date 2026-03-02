@@ -1,0 +1,13 @@
+/*
+ * This file contains definitions made in CMakeLists.txt
+ * that we want available in the source code.
+ * In the source code, include "config.h" (no .in suffix).
+ * This header file will be generated and filled with the
+ * right definition values.
+ */
+#ifndef S32K3X_CONFIG_H
+#define S32K3X_CONFIG_H
+
+#define S32K3X_PROJECT_VERSION "@CONAN_PACKAGE_VERSION@"
+
+#endif /* S32K3X_CONFIG_H */

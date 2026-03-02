@@ -2,32 +2,71 @@
  *
  * File Name: main.c
  * Project: S32K3X Workspace
- * Description: Main application entry point (placeholder)
+ * Description: Main application entry point
  * Author: Mohammad Rashiqul Alam
  *
  * Copyright (c) 2026 Mohammad Rashiqul Alam. All rights reserved.
  *
  ******************************************************************************/
 
+#include <stdint.h>
+
+/* Application loop counter for testing */
+static volatile uint32_t g_loop_count = 0;
+
+/**
+ * @brief Initialize system hardware (placeholder)
+ */
+void system_init(void)
+{
+    /* System initialization will be added here */
+    /* Clock configuration */
+    /* Peripheral initialization */
+}
+
+/**
+ * @brief Application initialization (placeholder)
+ */
+void app_init(void)
+{
+    /* Application-specific initialization */
+}
+
+/**
+ * @brief Main application task (placeholder)
+ */
+void app_task(void)
+{
+    /* Main application logic */
+    g_loop_count++;
+}
+
 /**
  * @brief Main function - Entry point for the application
  *
- * This is a placeholder main function for the S32K3x workspace.
- * Actual implementation will be added once BSP components are integrated.
+ * For S32K358x (ARM Cortex-M7): Runs in infinite loop
+ * For x86 testing: Compiled out when UNIT_TEST_BUILD is defined
  *
  * @return Should never return in embedded systems
  */
+#ifndef UNIT_TEST_BUILD
 int main(void)
 {
-    /* System initialization will be added here */
-    
+    /* System initialization */
+    system_init();
+
     /* Initialize peripherals */
-    
-    /* Main application loop */
-    while (1)
-    {
-        /* Application code goes here */
+    app_init();
+
+#ifdef S32K358
+    /* Embedded target - infinite loop */
+    while (1) {
+        app_task();
     }
-    
-    return 0;  /* Should never reach here */
+#else
+    /* Testing on x86 - run once and return for testability */
+    app_task();
+    return 0;
+#endif
 }
+#endif /* UNIT_TEST_BUILD */
