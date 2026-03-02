@@ -1,0 +1,95 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.elf
+*.bin
+*.hex
+*.s19
+*.srec
+
+# Linker map files
+*.map
+
+# Debug directory (skip build generated C/CPP files)
+build/
+build*/
+*-build-*
+*.log
+
+# S32K3x specific artifacts
+*.axf
+*.lst
+*.dep
+*.dump
+
+# S32 Design Studio / IDE Files
+.metadata/
+.settings/
+.project
+.cproject
+.launches/
+RemoteSystemsTempFiles/
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Miscellaneous
+CMakeUserPresets.json
+
+# Ignore Google Repo Stuff
+.repo/
+scripts/Common
+
+# Sonarqube
+.scannerwork/
+
+# Eclipse
+.pydevproject
+
+# MATLAB
+*.autosave
+
+# Python virtual environments
+.venv/
+__pycache__/
+*.pyc
+
+# Megalinter Reports
+megalinter-reports/
+
+# Generated documentation
+docs/_build/
+site/
