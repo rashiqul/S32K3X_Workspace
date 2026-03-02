@@ -2,13 +2,71 @@
 #
 #     File Name: Makefile
 #     Project: S32K3X Workspace
-#     Description: Makefile for building S32K3xx firmware
-#                  Targets S32K358x microcontroller (Cortex-M7)
+#     Description: Unified Makefile for building S32K3xx firmware and x86 tests
+#                  - ARM GCC build for S32K358x microcontroller (Cortex-M7)
+#                  - Standard GCC build for x86 testing and coverage
 #     Author: Mohammad Rashiqul Alam
 #
 #     Copyright (c) 2026 Mohammad Rashiqul Alam. All rights reserved.
 #
 #******************************************************************************
+
+#==============================================================================
+# X86 Build Configuration (for development, testing, and coverage)
+#==============================================================================
+
+PACKAGE_NAME ?= s32k3x_workspace
+PACKAGE_VERSION ?=
+PYTHON_FILES ?= .
+MOD_TO_ANALYZE ?= ""
+C_FILES ?=
+CONAN_CONFIG_VERSION ?= main
+CONAN_CONFIG_URL ?= 
+CONAN_FLAGS_PARAM := $(CONAN_FLAGS)
+
+# Default for local x86_64 development
+TARGET_CPU ?= x86_64
+
+# Auto-detect OS and set appropriate Conan profile
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+	DEFAULT_CONAN_BUILD_PROFILE := $(CURDIR)/.conan/profiles/s32k3x_workspace_linux
+else ifeq ($(UNAME_S),Darwin)
+	DEFAULT_CONAN_BUILD_PROFILE := $(CURDIR)/.conan/profiles/s32k3x_workspace_macos
+else
+	$(error Unsupported OS: $(UNAME_S))
+endif
+
+CONAN_BUILD_PROFILE ?= $(DEFAULT_CONAN_BUILD_PROFILE)
+
+ifeq ($(MAKECMDGOALS),coverage)
+COVERAGE ?= 1
+endif
+
+ifeq ($(COVERAGE), 1)
+TARGET_CPU = x86_64
+BUILD_TYPE ?= Debug
+CONAN_FLAGS += -o ${PACKAGE_NAME}/*:coverage=True
+else
+BUILD_TYPE ?= Release
+endif
+
+BUILD_DIR ?= build_$(TARGET_CPU)/$(BUILD_TYPE)
+CONAN_FLAGS += -pr:b $(CONAN_BUILD_PROFILE)
+CONAN_FLAGS += -pr:h $(CONAN_BUILD_PROFILE)
+CONAN_FLAGS += --lockfile-partial
+
+ifeq ($(LOCAL_CONAN),1)
+export CONAN_HOME=${CURDIR}/.conan2_local/.conan2
+endif
+
+ifneq ($(VERBOSE),1)
+.SILENT:
+endif
+
+#==============================================================================
+# ARM Build Configuration (for S32K358x target)
+#==============================================================================
 
 # Project Configuration
 PROJECT_NAME = s32k3x_firmware
@@ -16,111 +74,266 @@ TARGET_MCU = S32K358
 
 # Toolchain Configuration
 TOOLCHAIN_PATH = /home/rashiqul/NXP/gcc-10.2-arm32-eabi/bin
-CC = $(TOOLCHAIN_PATH)/arm-none-eabi-gcc
-CXX = $(TOOLCHAIN_PATH)/arm-none-eabi-g++
-AS = $(TOOLCHAIN_PATH)/arm-none-eabi-as
-LD = $(TOOLCHAIN_PATH)/arm-none-eabi-ld
-OBJCOPY = $(TOOLCHAIN_PATH)/arm-none-eabi-objcopy
-OBJDUMP = $(TOOLCHAIN_PATH)/arm-none-eabi-objdump
-SIZE = $(TOOLCHAIN_PATH)/arm-none-eabi-size
-AR = $(TOOLCHAIN_PATH)/arm-none-eabi-ar
-GDB = $(TOOLCHAIN_PATH)/arm-none-eabi-gdb
+ARM_CC = $(TOOLCHAIN_PATH)/arm-none-eabi-gcc
+ARM_CXX = $(TOOLCHAIN_PATH)/arm-none-eabi-g++
+ARM_AS = $(TOOLCHAIN_PATH)/arm-none-eabi-as
+ARM_LD = $(TOOLCHAIN_PATH)/arm-none-eabi-ld
+ARM_OBJCOPY = $(TOOLCHAIN_PATH)/arm-none-eabi-objcopy
+ARM_OBJDUMP = $(TOOLCHAIN_PATH)/arm-none-eabi-objdump
+ARM_SIZE = $(TOOLCHAIN_PATH)/arm-none-eabi-size
+ARM_AR = $(TOOLCHAIN_PATH)/arm-none-eabi-ar
+ARM_GDB = $(TOOLCHAIN_PATH)/arm-none-eabi-gdb
 
-# Directories
-SRC_DIR = src
-INC_DIR = include
-BSP_DIR = bsp
-BUILD_DIR = build
-OBJ_DIR = $(BUILD_DIR)/obj
-BIN_DIR = $(BUILD_DIR)/bin
+# Directories for ARM build
+ARM_SRC_DIR = src
+ARM_INC_DIR = include
+ARM_BSP_DIR = bsp
+ARM_BUILD_DIR = build_arm
+ARM_OBJ_DIR = $(ARM_BUILD_DIR)/obj
+ARM_BIN_DIR = $(ARM_BUILD_DIR)/bin
 
-# Source Files (to be populated)
-C_SOURCES = $(wildcard $(SRC_DIR)/*.c) \
-            $(wildcard $(BSP_DIR)/**/*.c)
+# Source Files for ARM (to be populated)
+ARM_C_SOURCES = $(wildcard $(ARM_SRC_DIR)/*.c) \
+                $(wildcard $(ARM_BSP_DIR)/**/*.c)
 
-ASM_SOURCES = $(wildcard $(BSP_DIR)/startup/*.s)
+ARM_ASM_SOURCES = $(wildcard $(ARM_BSP_DIR)/startup/*.s)
 
-# Include Directories
-INCLUDES = -I$(INC_DIR) \
-           -I$(BSP_DIR) \
-           -I$(BSP_DIR)/config \
-           -I$(BSP_DIR)/drivers
+# Include Directories for ARM
+ARM_INCLUDES = -I$(ARM_INC_DIR) \
+               -I$(ARM_BSP_DIR) \
+               -I$(ARM_BSP_DIR)/config \
+               -I$(ARM_BSP_DIR)/drivers
 
 # CPU and FPU Configuration for S32K358x (Cortex-M7)
 CPU = -mcpu=cortex-m7
 FPU = -mfpu=fpv5-d16
 FLOAT_ABI = -mfloat-abi=hard
 
-# Compile Flags
-CFLAGS = $(CPU) -mthumb $(FPU) $(FLOAT_ABI)
-CFLAGS += -std=gnu11
-CFLAGS += -Wall -Wextra -Werror
-CFLAGS += -fdata-sections -ffunction-sections
-CFLAGS += -fno-common -fno-builtin
-CFLAGS += -g3 -O0  # Debug build (change to -Os or -O2 for release)
-CFLAGS += $(INCLUDES)
-CFLAGS += -D$(TARGET_MCU)
+# ARM Compile Flags
+ARM_CFLAGS = $(CPU) -mthumb $(FPU) $(FLOAT_ABI)
+ARM_CFLAGS += -std=gnu11
+ARM_CFLAGS += -Wall -Wextra -Werror
+ARM_CFLAGS += -fdata-sections -ffunction-sections
+ARM_CFLAGS += -fno-common -fno-builtin
+ARM_CFLAGS += -g3 -O0  # Debug build
+ARM_CFLAGS += $(ARM_INCLUDES)
+ARM_CFLAGS += -D$(TARGET_MCU)
 
-# C++ Flags
-CXXFLAGS = $(CPU) -mthumb $(FPU) $(FLOAT_ABI)
-CXXFLAGS += -std=c++17
-CXXFLAGS += -Wall -Wextra -Werror
-CXXFLAGS += -fdata-sections -ffunction-sections
-CXXFLAGS += -fno-exceptions -fno-rtti
-CXXFLAGS += -g3 -O0
-CXXFLAGS += $(INCLUDES)
-CXXFLAGS += -D$(TARGET_MCU)
+# ARM C++ Flags
+ARM_CXXFLAGS = $(CPU) -mthumb $(FPU) $(FLOAT_ABI)
+ARM_CXXFLAGS += -std=c++17
+ARM_CXXFLAGS += -Wall -Wextra -Werror
+ARM_CXXFLAGS += -fdata-sections -ffunction-sections
+ARM_CXXFLAGS += -fno-exceptions -fno-rtti
+ARM_CXXFLAGS += -g3 -O0
+ARM_CXXFLAGS += $(ARM_INCLUDES)
+ARM_CXXFLAGS += -D$(TARGET_MCU)
 
-# Assembly Flags
-ASFLAGS = $(CPU) -mthumb $(FPU) $(FLOAT_ABI)
-ASFLAGS += -g3
+# ARM Assembly Flags
+ARM_ASFLAGS = $(CPU) -mthumb $(FPU) $(FLOAT_ABI)
+ARM_ASFLAGS += -g3
 
-# Linker Flags (linker script to be added)
-LDFLAGS = $(CPU) -mthumb $(FPU) $(FLOAT_ABI)
-LDFLAGS += -specs=nano.specs -specs=nosys.specs
-LDFLAGS += -Wl,--gc-sections
-LDFLAGS += -Wl,--print-memory-usage
-# LDFLAGS += -T$(BSP_DIR)/linker/S32K358_flash.ld  # Uncomment when linker script is available
+# ARM Linker Flags
+ARM_LDFLAGS = $(CPU) -mthumb $(FPU) $(FLOAT_ABI)
+ARM_LDFLAGS += -specs=nano.specs -specs=nosys.specs
+ARM_LDFLAGS += -Wl,--gc-sections
+ARM_LDFLAGS += -Wl,--print-memory-usage
 
-# Object Files
-OBJECTS = $(addprefix $(OBJ_DIR)/, $(notdir $(C_SOURCES:.c=.o)))
-OBJECTS += $(addprefix $(OBJ_DIR)/, $(notdir $(ASM_SOURCES:.s=.o)))
+# ARM Object Files
+ARM_OBJECTS = $(addprefix $(ARM_OBJ_DIR)/, $(notdir $(ARM_C_SOURCES:.c=.o)))
+ARM_OBJECTS += $(addprefix $(ARM_OBJ_DIR)/, $(notdir $(ARM_ASM_SOURCES:.s=.o)))
 
-# Output Files
-ELF_FILE = $(BIN_DIR)/$(PROJECT_NAME).elf
-HEX_FILE = $(BIN_DIR)/$(PROJECT_NAME).hex
-BIN_FILE = $(BIN_DIR)/$(PROJECT_NAME).bin
-MAP_FILE = $(BIN_DIR)/$(PROJECT_NAME).map
+# ARM Output Files
+ARM_ELF_FILE = $(ARM_BIN_DIR)/$(PROJECT_NAME).elf
+ARM_HEX_FILE = $(ARM_BIN_DIR)/$(PROJECT_NAME).hex
+ARM_BIN_FILE = $(ARM_BIN_DIR)/$(PROJECT_NAME).bin
+ARM_MAP_FILE = $(ARM_BIN_DIR)/$(PROJECT_NAME).map
 
-# VPATH for source file search
-VPATH = $(SRC_DIR):$(BSP_DIR)
+#==============================================================================
+# Phony Targets
+#==============================================================================
 
-# Default Target
-.PHONY: all
-all: help
+.PHONY: default help
+default: help
 
+#==============================================================================
 # Help Target
-.PHONY: help
+#==============================================================================
+
 help:
 	@echo "=========================================="
 	@echo "  S32K3X Workspace Build System"
 	@echo "=========================================="
 	@echo ""
-	@echo "Available targets:"
-	@echo "  build_all_tgt    - Build firmware for S32K3xx targets"
-	@echo "  clean            - Remove build artifacts"
-	@echo "  distclean        - Remove all generated files"
-	@echo "  info             - Display build configuration"
-	@echo "  help             - Display this help message"
+	@echo "X86 Build Targets (for development/testing):"
+	@echo "  configure         - Configure project with Conan/CMake"
+	@echo "  pre-configure     - Install Poetry dependencies"
+	@echo "  conan-install     - Install Conan dependencies"
+	@echo "  build             - Build x86 Debug version"
+	@echo "  build-debug       - Build x86 Debug version"
+	@echo "  build-release     - Build x86 Release version"
+	@echo "  test              - Run unit tests"
+	@echo "  coverage          - Generate coverage reports"
+	@echo "  coverage-cbd      - Generate C/C++ coverage report"
 	@echo ""
-	@echo "Project: $(PROJECT_NAME)"
-	@echo "Target MCU: $(TARGET_MCU)"
-	@echo "Toolchain: $(TOOLCHAIN_PATH)"
+	@echo "ARM Build Targets (for S32K358x):"
+	@echo "  build_all_tgt     - Build firmware for ARM Cortex-M7"
+	@echo "  arm-clean         - Clean ARM build artifacts"
+	@echo "  arm-info          - Display ARM build configuration"
+	@echo ""
+	@echo "Quality Targets:"
+	@echo "  lint              - Run linting checks"
+	@echo "  clang-format      - Format C/C++ code"
+	@echo "  format            - Format Python code"
+	@echo ""
+	@echo "Utility Targets:"
+	@echo "  clean             - Remove build artifacts"
+	@echo "  clean-all         - Remove all artifacts (pristine state)"
+	@echo "  list-targets      - List all CMake targets"
+	@echo "  help              - Display this help message"
+	@echo ""
+	@echo "Project: $(PACKAGE_NAME)"
+	@echo "Target MCU (ARM): $(TARGET_MCU)"
+	@echo "Toolchain (ARM): $(TOOLCHAIN_PATH)"
 	@echo ""
 
-# Build All Targets
+#==============================================================================
+# X86 Build Targets
+#==============================================================================
+
+.PHONY: list-targets
+list-targets:
+	@if [ -f ${BUILD_DIR}/Makefile ]; then \
+		echo "Available build targets:"; \
+		poetry run cmake --build ${BUILD_DIR} --target help; \
+	else \
+		echo "Build directory not found. Run 'make configure' first."; \
+	fi
+
+.PHONY: all
+all: configure build-release test lint
+
+.PHONY: lint check
+lint check:
+	poetry check -v
+	poetry run black --check $(PYTHON_FILES) --exclude "build_x86_64|build_arm|.conan2_local"
+	poetry run ruff $(PYTHON_FILES) --exclude "build_x86_64,build_arm,.conan2_local"
+
+.PHONY: setup
+setup:
+	@echo "🔧 Running development environment setup..."
+	@if [ -f ./scripts/setup-dev-environment.sh ]; then \
+		./scripts/setup-dev-environment.sh; \
+	else \
+		echo "Setup script not found. Installing dependencies..."; \
+		$(MAKE) pre-configure; \
+	fi
+
+.PHONY: pre-configure
+pre-configure:
+	poetry install --no-root
+
+.PHONY: conan-install
+conan-install:
+	poetry run conan install . --build=missing -s build_type=$(BUILD_TYPE) $(CONAN_FLAGS)
+	CONAN_BUILD=0 CONAN_RUN_TESTS=0 poetry run conan build . --build=missing -s build_type=$(BUILD_TYPE) $(CONAN_FLAGS)
+
+.PHONY: configure
+configure: conanfile.py pre-configure conan-install
+
+.PHONY: build-debug
+build-debug:
+	BUILD_TYPE=Debug $(MAKE) configure
+	. build_$(TARGET_CPU)/Debug/generators/conanbuild.sh && poetry run cmake --build build_$(TARGET_CPU)/Debug -t all
+
+.PHONY: build-release
+build-release:
+	BUILD_TYPE=Release $(MAKE) configure
+	. build_$(TARGET_CPU)/Release/generators/conanbuild.sh && poetry run cmake --build build_$(TARGET_CPU)/Release -t all
+
+.PHONY: build
+build: build-debug
+
+.PHONY: test
+test: configure
+	. ${BUILD_DIR}/generators/conanbuild.sh && poetry run cmake --build ${BUILD_DIR} -t test
+
+.PHONY: package
+package:
+	poetry install --no-root
+	poetry run conan create . --build=missing -s build_type=$(BUILD_TYPE) $(CONAN_FLAGS)
+
+.PHONY: coverage
+coverage: clean pre-configure
+	@echo "========================================================"
+	@echo "          Full Coverage Analysis"
+	@echo "========================================================"
+	@echo ""
+	@echo "Building and testing Debug profile with coverage..."
+	@echo "--------------------------------------------------------"
+	COVERAGE=1 $(MAKE) build-debug
+	COVERAGE=1 BUILD_TYPE=Debug $(MAKE) test
+	COVERAGE=1 BUILD_TYPE=Debug $(MAKE) coverage-nosanitize coverage-cbd
+	@echo ""
+	@echo "Building and testing Release profile with coverage..."
+	@echo "--------------------------------------------------------"
+	COVERAGE=1 $(MAKE) build-release
+	COVERAGE=1 BUILD_TYPE=Release $(MAKE) test
+	COVERAGE=1 BUILD_TYPE=Release $(MAKE) coverage-nosanitize coverage-cbd
+	@echo ""
+	@echo "========================================================"
+	@echo "          Coverage Reports Generated"
+	@echo "========================================================"
+	@echo "Debug HTML Report:   build_$(TARGET_CPU)/Debug/coverage/coverage_report.html"
+	@echo "Release HTML Report: build_$(TARGET_CPU)/Release/coverage/coverage_report.html"
+	@echo "========================================================"
+
+.PHONY: coverage-nosanitize
+coverage-nosanitize:
+	find . -name "*.gcda" | xargs rm -f
+	CONAN_RUN_ENABLE_SANITIZER=0 \
+	poetry run conan build . --build=missing -s build_type=$(BUILD_TYPE) $(CONAN_FLAGS)
+
+.PHONY: coverage-sanitize
+coverage-sanitize:
+	find . -name "*.gcda" | xargs rm -f
+	CONAN_RUN_ENABLE_SANITIZER=1 \
+	poetry run conan build . --build=missing -s build_type=$(BUILD_TYPE) $(CONAN_FLAGS)
+
+.PHONY: coverage-cbd
+coverage-cbd:
+	mkdir -p ${BUILD_DIR}/coverage
+	@echo ""
+	@echo "C/C++ Code Coverage ($(BUILD_TYPE))"
+	@echo "----------------------------------------"
+	@(poetry run gcovr -r. -s \
+	--exclude 'test/.*' \
+	--exclude '.conan2_local/.*' \
+	--html-details --html-title "S32K3X Code Coverage Report ($(BUILD_TYPE))" \
+	--cobertura ${BUILD_DIR}/coverage/cobertura.xml --cobertura-pretty \
+	--sonarqube ${BUILD_DIR}/coverage/sonarqube.xml \
+	-o ${BUILD_DIR}/coverage/coverage_report.html 2>/dev/null | grep -E '^(lines|functions|branches):' || echo "No C/C++ coverage data found")
+
+.PHONY: clang-format
+clang-format:
+	@echo "Formatting C/C++ files with clang-format..."
+	@find src include test -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) 2>/dev/null | while read file; do \
+		echo "  Formatting: $$file"; \
+		clang-format -i "$$file"; \
+	done
+	@echo "✅ All C/C++ files formatted"
+
+.PHONY: format
+format:
+	poetry run black $(PYTHON_FILES)
+	poetry run ruff --fix $(PYTHON_FILES)
+
+#==============================================================================
+# ARM Build Targets
+#==============================================================================
+
 .PHONY: build_all_tgt
-build_all_tgt: $(BIN_DIR) $(OBJ_DIR)
+build_all_tgt: $(ARM_BIN_DIR) $(ARM_OBJ_DIR)
 	@echo "=========================================="
 	@echo "  Building S32K3XX Firmware"
 	@echo "=========================================="
@@ -129,8 +342,8 @@ build_all_tgt: $(BIN_DIR) $(OBJ_DIR)
 	@echo ""
 	@echo "Build configuration:"
 	@echo "  - Target MCU: $(TARGET_MCU)"
-	@echo "  - Compiler: $(CC)"
-	@echo "  - Build directory: $(BUILD_DIR)"
+	@echo "  - Compiler: $(ARM_CC)"
+	@echo "  - Build directory: $(ARM_BUILD_DIR)"
 	@echo ""
 	@echo "To complete the build, the following components are needed:"
 	@echo "  1. Startup code (reset handler, vector table)"
@@ -139,89 +352,64 @@ build_all_tgt: $(BIN_DIR) $(OBJ_DIR)
 	@echo "  4. Application source files"
 	@echo ""
 	@echo "Skeleton build structure created successfully!"
-	@echo "Build directories: $(OBJ_DIR), $(BIN_DIR)"
+	@echo "Build directories: $(ARM_OBJ_DIR), $(ARM_BIN_DIR)"
 	@echo ""
 
-# Create Directories
-$(BIN_DIR):
-	@mkdir -p $(BIN_DIR)
+$(ARM_BIN_DIR):
+	@mkdir -p $(ARM_BIN_DIR)
 
-$(OBJ_DIR):
-	@mkdir -p $(OBJ_DIR)
+$(ARM_OBJ_DIR):
+	@mkdir -p $(ARM_OBJ_DIR)
 
-# Compile C Sources
-$(OBJ_DIR)/%.o: %.c
-	@echo "Compiling: $<"
-	@$(CC) $(CFLAGS) -c $< -o $@
+.PHONY: arm-clean
+arm-clean:
+	@echo "Cleaning ARM build artifacts..."
+	@rm -rf $(ARM_BUILD_DIR)
+	@echo "ARM clean complete."
 
-# Compile C++ Sources
-$(OBJ_DIR)/%.o: %.cpp
-	@echo "Compiling: $<"
-	@$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# Compile Assembly Sources
-$(OBJ_DIR)/%.o: %.s
-	@echo "Assembling: $<"
-	@$(AS) $(ASFLAGS) -c $< -o $@
-
-# Link
-$(ELF_FILE): $(OBJECTS)
-	@echo "Linking: $(ELF_FILE)"
-	@$(CC) $(LDFLAGS) -Wl,-Map=$(MAP_FILE) $(OBJECTS) -o $@
-	@$(SIZE) $(ELF_FILE)
-
-# Generate HEX
-$(HEX_FILE): $(ELF_FILE)
-	@echo "Creating HEX: $(HEX_FILE)"
-	@$(OBJCOPY) -O ihex $(ELF_FILE) $(HEX_FILE)
-
-# Generate BIN
-$(BIN_FILE): $(ELF_FILE)
-	@echo "Creating BIN: $(BIN_FILE)"
-	@$(OBJCOPY) -O binary $(ELF_FILE) $(BIN_FILE)
-
-# Clean Build Artifacts
-.PHONY: clean
-clean:
-	@echo "Cleaning build artifacts..."
-	@rm -rf $(BUILD_DIR)
-	@echo "Clean complete."
-
-# Clean Everything
-.PHONY: distclean
-distclean: clean
-	@echo "Removing all generated files..."
-	@rm -rf $(BUILD_DIR)
-	@echo "Distclean complete."
-
-# Display Build Info
-.PHONY: info
-info:
+.PHONY: arm-info
+arm-info:
 	@echo "=========================================="
-	@echo "  Build Configuration"
+	@echo "  ARM Build Configuration"
 	@echo "=========================================="
 	@echo "Project Name:    $(PROJECT_NAME)"
 	@echo "Target MCU:      $(TARGET_MCU)"
 	@echo "Toolchain Path:  $(TOOLCHAIN_PATH)"
 	@echo ""
-	@echo "Compiler:        $(CC)"
-	@echo "C++ Compiler:    $(CXX)"
-	@echo "Linker:          $(LD)"
-	@echo "Objcopy:         $(OBJCOPY)"
-	@echo "Size:            $(SIZE)"
+	@echo "Compiler:        $(ARM_CC)"
+	@echo "C++ Compiler:    $(ARM_CXX)"
+	@echo "Linker:          $(ARM_LD)"
+	@echo "Objcopy:         $(ARM_OBJCOPY)"
+	@echo "Size:            $(ARM_SIZE)"
 	@echo ""
 	@echo "CPU:             $(CPU)"
 	@echo "FPU:             $(FPU)"
 	@echo "Float ABI:       $(FLOAT_ABI)"
 	@echo ""
-	@echo "Source Dir:      $(SRC_DIR)"
-	@echo "Include Dir:     $(INC_DIR)"
-	@echo "BSP Dir:         $(BSP_DIR)"
-	@echo "Build Dir:       $(BUILD_DIR)"
+	@echo "Source Dir:      $(ARM_SRC_DIR)"
+	@echo "Include Dir:     $(ARM_INC_DIR)"
+	@echo "BSP Dir:         $(ARM_BSP_DIR)"
+	@echo "Build Dir:       $(ARM_BUILD_DIR)"
 	@echo ""
-	@echo "C Sources:       $(words $(C_SOURCES)) files"
-	@echo "ASM Sources:     $(words $(ASM_SOURCES)) files"
+	@echo "C Sources:       $(words $(ARM_C_SOURCES)) files"
+	@echo "ASM Sources:     $(words $(ARM_ASM_SOURCES)) files"
 	@echo ""
 
-# Phony Targets
-.PHONY: all clean distclean info help build_all_tgt
+#==============================================================================
+# Clean Targets
+#==============================================================================
+
+.PHONY: clean clean-all
+clean:
+	rm -rf build build_x86_64 build_arm
+	find . -type d -name "build*" -not -name "build_arm" | xargs rm -rf
+	rm -rf .benchmark .coverage .venv .*_cache site
+	find . -type d -name __pycache__ | xargs rm -rf
+
+clean-all: clean
+	@echo "Removing all dependencies and virtual environments..."
+	rm -rf .conan2_local poetry.lock
+	@echo "Project reset to pristine state"
+
+.DEFAULT:
+	. ${BUILD_DIR}/generators/conanbuild.sh && poetry run cmake --build ${BUILD_DIR} --target $@

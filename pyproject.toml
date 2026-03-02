@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "s32k3x_workspace"
+version = "0.1.0"
+description = "S32K3X Workspace for NXP S32K358x Microcontroller"
+license = "MIT"
+authors = [
+    "Mohammad Rashiqul Alam",
+]
+maintainers = [
+    "Mohammad Rashiqul Alam",
+]
+readme = "README.md"
+homepage = "https://github.com/rashiqul/S32K3X_Workspace"
+repository = "https://github.com/rashiqul/S32K3X_Workspace"
+
+
+[build-system]
+requires = ["poetry-core>=1.8.2"]
+build-backend = "poetry.core.masonry.api"
+
+
+# Using public PyPI for package management
+# Using default PyPI for all dependencies
+
+
+[tool.poetry.dependencies]
+python = "^3.10.0"
+
+
+[tool.poetry.dev-dependencies]
+# Essential dependencies for C/C++ build
+cmake = "^3.28.0"
+conan = "^2.0.0"
+gcovr = "^7.0"
+# Python code quality tools
+black = "^23.0.0"
+ruff = "^0.1.0"
