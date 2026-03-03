@@ -61,6 +61,12 @@ jobs:
           base_branch="${{ github.base_ref }}"
           head_branch="${{ github.head_ref }}"
           
+          # Only check on pull requests (base_ref and head_ref are empty for push events)
+          if [ -z "$base_branch" ] || [ -z "$head_branch" ]; then
+            echo "⏭️  Skipping linear history check (not a PR)"
+            exit 0
+          fi
+          
           # Fetch both branches
           git fetch origin "$base_branch"
           git fetch origin "$head_branch"
@@ -85,7 +91,8 @@ jobs:
           base_branch="${{ github.base_ref }}"
           
           # Check each commit message in the PR
-          git log origin/$base_branch..HEAD --format=%s | while read -r msg; do
+          set -e
+          while IFS= read -r msg; do
             if [ ${#msg} -lt 10 ]; then
               echo "❌ Commit message too short (< 10 chars): '$msg'"
               exit 1
@@ -93,7 +100,7 @@ jobs:
             if [ ${#msg} -gt 100 ]; then
               echo "⚠️  Warning: Commit message too long (> 100 chars): '$msg'"
             fi
-          done
+          done < <(git log origin/$base_branch..HEAD --format=%s)
           
           echo "✅ Commit messages validated"
 
@@ -271,7 +278,7 @@ jobs:
           cd build
           cmake .. \
             -G Ninja \
-            -DCMAKE_TOOLCHAIN_FILE=build_x86_64/Release/generators/conan_toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE=generators/conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_C_FLAGS="-Wall -Wextra -Werror -pedantic" \
             -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror -pedantic"
@@ -346,15 +353,15 @@ jobs:
         run: |
           echo "🧪 Testing Conan package..."
           
-          # Verify the package is in the cache
-          conan search s32k3x_workspace
+          # Verify the package is in the cache using Conan 2
+          conan list "s32k3x_workspace/*:*"
           
           echo "✅ Conan package validated"
       
       - name: Export package info
         run: |
           echo "📋 Package Information:"
-          conan search s32k3x_workspace -v
+          conan list "s32k3x_workspace/*:*"
           
           # Get package details
           echo ""
@@ -391,7 +398,7 @@ jobs:
       - name: Configure and build with tests
         run: |
           cd build
-          cmake .. -G Ninja -DCMAKE_TOOLCHAIN_FILE=build_x86_64/Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake .. -G Ninja -DCMAKE_TOOLCHAIN_FILE=generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
           ninja
       
       - name: Run unit tests
@@ -583,7 +590,7 @@ jobs:
       - name: Configure CMake
         run: |
           cd build
-          cmake .. -G Ninja -DCMAKE_TOOLCHAIN_FILE=build_x86_64/Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake .. -G Ninja -DCMAKE_TOOLCHAIN_FILE=generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
       
       - name: Build with SonarQube wrapper
         run: |
@@ -611,7 +618,7 @@ jobs:
             -Dsonar.organization=rashiqul-sonar-workspace \
             -Dsonar.sources=src,include \
             -Dsonar.tests=test \
-            -Dsonar.cfamily.compile-commands=bw-output/compile_commands.json \
+            -Dsonar.cfamily.build-wrapper-output=bw-output \
             -Dsonar.host.url=https://sonarcloud.io
 
   pipeline-summary:

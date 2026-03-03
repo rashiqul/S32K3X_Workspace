@@ -29,8 +29,7 @@ int main(void)
     
 #ifdef HAS_CONFIG_H
     printf("✅ config.h found and included\n");
-    printf("   Project name: %s\n", MY_PROJECT_NAME);
-    printf("   Package version: %s\n", MY_PROJECT_VERSION);
+    printf("   Package version: %s\n", S32K3X_PROJECT_VERSION);
 #else
     printf("⚠️  config.h not found (header-only package)\n");
 #endif
