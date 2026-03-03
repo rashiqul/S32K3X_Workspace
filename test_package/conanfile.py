@@ -12,10 +12,9 @@ class TestPackageConan(ConanFile):
         self.requires(self.tested_reference_str)
 
     def build(self):
-        if self.settings.arch == 'x86_64':
-            cmake = CMake(self)
-            cmake.configure()
-            cmake.build()
+        cmake = CMake(self)
+        cmake.configure()
+        cmake.build()
 
     def layout(self):
         cmake_layout(self)
