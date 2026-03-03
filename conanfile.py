@@ -4,6 +4,7 @@ from subprocess import check_output
 
 from conan import ConanFile
 from conan.tools.cmake import CMake, cmake_layout
+from conan.tools.files import copy
 from conan.errors import ConanException
 
 
@@ -147,6 +148,25 @@ class S32K3xWorkspaceConan(ConanFile):
             except ConanException as e:
                 # Log error but continue to generate coverage reports
                 self.output.error(f"Tests failed with exit code {e}")
+
+    def package(self):
+        # Copy license
+        copy(self, "LICENSE", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
+        
+        # Copy headers from include directory
+        copy(self, "*.h", src=os.path.join(self.source_folder, "include"), dst=os.path.join(self.package_folder, "include"), keep_path=True)
+        copy(self, "*.hpp", src=os.path.join(self.source_folder, "include"), dst=os.path.join(self.package_folder, "include"), keep_path=True)
+        
+        # Copy generated config.h from build folder
+        config_h = os.path.join(self.build_folder, "config.h")
+        if os.path.exists(config_h):
+            copy(self, "config.h", src=self.build_folder, dst=os.path.join(self.package_folder, "include"))
+        
+        # Copy libraries if built (for non-header-only mode)
+        if not self.options.header_only:
+            copy(self, "*.a", src=os.path.join(self.build_folder, "src"), dst=os.path.join(self.package_folder, "lib"), keep_path=False)
+            copy(self, "*.so*", src=os.path.join(self.build_folder, "src"), dst=os.path.join(self.package_folder, "lib"), keep_path=False)
+            copy(self, "*.dylib", src=os.path.join(self.build_folder, "src"), dst=os.path.join(self.package_folder, "lib"), keep_path=False)
 
     def package_info(self):
         self.cpp_info.libs = []
