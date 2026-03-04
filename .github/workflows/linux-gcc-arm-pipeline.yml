@@ -269,26 +269,27 @@ jobs:
       
       - name: Install Conan dependencies
         run: |
-          conan install . --output-folder=build --build=missing -s build_type=${{ env.BUILD_TYPE }} -pr:h .conan/profiles/s32k3x_workspace_linux -pr:b .conan/profiles/s32k3x_workspace_linux
+          conan install . --output-folder=. --build=missing -s build_type=${{ env.BUILD_TYPE }} -pr:h .conan/profiles/s32k3x_workspace_linux -pr:b .conan/profiles/s32k3x_workspace_linux
       
       - name: Verify Conan setup
         run: |
           echo "📋 Verifying Conan generated files..."
-          if [ ! -f "build/generators/conan_toolchain.cmake" ]; then
+          # Find the actual generator path created by cmake_layout
+          TOOLCHAIN_PATH=$(find build_x86_64 -name "conan_toolchain.cmake" 2>/dev/null | head -1)
+          if [ -z "$TOOLCHAIN_PATH" ]; then
             echo "❌ Error: conan_toolchain.cmake not found"
-            echo "Contents of build directory:"
-            ls -la build/ || true
-            echo "Contents of build/generators directory:"
-            ls -la build/generators/ || true
+            echo "Directory structure:"
+            find . -maxdepth 3 -type d | sort
             exit 1
           fi
-          echo "✅ conan_toolchain.cmake found"
+          echo "✅ Found toolchain at: $TOOLCHAIN_PATH"
+          echo "TOOLCHAIN_PATH=${PWD}/${TOOLCHAIN_PATH}" >> $GITHUB_ENV
       
       - name: Configure CMake with warning flags
         run: |
-          cmake -S . -B build \
+          cmake -S . -B build_x86_64/${{ env.BUILD_TYPE }} \
             -G Ninja \
-            -DCMAKE_TOOLCHAIN_FILE="${PWD}/build/generators/conan_toolchain.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_C_FLAGS="-Wall -Wextra -Werror -pedantic" \
             -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror -pedantic"
@@ -298,13 +299,13 @@ jobs:
           echo "🔨 Building project..."
           
           # Build and capture output
-          if ! cmake --build build 2>&1 | tee build/build_output.log; then
+          if ! cmake --build build_x86_64/${{ env.BUILD_TYPE }} 2>&1 | tee build_output.log; then
             echo "❌ Build failed with errors"
             exit 1
           fi
           
           # Check for warnings in build output
-          if grep -i "warning:" build/build_output.log; then
+          if grep -i "warning:" build_output.log; then
             echo "❌ Build completed but contains warnings"
             echo "All warnings must be fixed"
             exit 1
@@ -317,9 +318,9 @@ jobs:
         with:
           name: build-artifacts
           path: |
-            build/
-            !build/conan/
-            !build/_deps/
+            build_x86_64/
+            !build_x86_64/conan/
+            !build_x86_64/_deps/
           retention-days: 7
 
   conan-package:
@@ -400,19 +401,20 @@ jobs:
       
       - name: Install Conan dependencies
         run: |
-          conan install . --output-folder=build --build=missing -s build_type=${{ env.BUILD_TYPE }} -pr:h .conan/profiles/s32k3x_workspace_linux -pr:b .conan/profiles/s32k3x_workspace_linux
+          conan install . --output-folder=. --build=missing -s build_type=${{ env.BUILD_TYPE }} -pr:h .conan/profiles/s32k3x_workspace_linux -pr:b .conan/profiles/s32k3x_workspace_linux
       
       - name: Configure and build with tests
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE="${PWD}/build/generators/conan_toolchain.cmake" -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-          cmake --build build
+          TOOLCHAIN_PATH=$(find build_x86_64 -name "conan_toolchain.cmake" | head -1)
+          cmake -S . -B build_x86_64/${{ env.BUILD_TYPE }} -G Ninja -DCMAKE_TOOLCHAIN_FILE="${PWD}/${TOOLCHAIN_PATH}" -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake --build build_x86_64/${{ env.BUILD_TYPE }}
       
       - name: Run unit tests
         run: |
           echo "🧪 Running unit tests..."
           
           # Run CTest with verbose output
-          if ! ctest --test-dir build --output-on-failure --verbose; then
+          if ! ctest --test-dir build_x86_64/${{ env.BUILD_TYPE }} --output-on-failure --verbose; then
             echo "❌ Unit tests failed"
             exit 1
           fi
@@ -422,14 +424,14 @@ jobs:
       - name: Generate test report
         if: always()
         run: |
-          ctest --test-dir build --output-junit build/test-results.xml || true
+          ctest --test-dir build_x86_64/${{ env.BUILD_TYPE }} --output-junit build_x86_64/${{ env.BUILD_TYPE }}/test-results.xml || true
       
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: build/test-results.xml
+          path: build_x86_64/${{ env.BUILD_TYPE }}/test-results.xml
           retention-days: 30
 
   arm-build:
@@ -574,7 +576,7 @@ jobs:
       
       - name: Install Conan dependencies
         run: |
-          conan install . --output-folder=build --build=missing -s build_type=${{ env.BUILD_TYPE }} -pr:h .conan/profiles/s32k3x_workspace_linux -pr:b .conan/profiles/s32k3x_workspace_linux
+          conan install . --output-folder=. --build=missing -s build_type=${{ env.BUILD_TYPE }} -pr:h .conan/profiles/s32k3x_workspace_linux -pr:b .conan/profiles/s32k3x_workspace_linux
       
       - name: Download SonarQube build wrapper
         run: |
@@ -591,13 +593,14 @@ jobs:
       
       - name: Configure CMake
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE="${PWD}/build/generators/conan_toolchain.cmake" -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          TOOLCHAIN_PATH=$(find build_x86_64 -name "conan_toolchain.cmake" | head -1)
+          cmake -S . -B build_x86_64/${{ env.BUILD_TYPE }} -G Ninja -DCMAKE_TOOLCHAIN_FILE="${PWD}/${TOOLCHAIN_PATH}" -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
       
       - name: Build with SonarQube wrapper
         run: |
           .sonar/build-wrapper-linux-x86/build-wrapper-linux-x86-64 \
             --out-dir bw-output \
-            cmake --build build
+            cmake --build build_x86_64/${{ env.BUILD_TYPE }}
       
       - name: Download and install SonarScanner
         run: |
