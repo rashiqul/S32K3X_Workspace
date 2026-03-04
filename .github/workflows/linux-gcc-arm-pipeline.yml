@@ -271,11 +271,24 @@ jobs:
         run: |
           conan install . --output-folder=build --build=missing -s build_type=${{ env.BUILD_TYPE }} -pr:h .conan/profiles/s32k3x_workspace_linux -pr:b .conan/profiles/s32k3x_workspace_linux
       
+      - name: Verify Conan setup
+        run: |
+          echo "📋 Verifying Conan generated files..."
+          if [ ! -f "build/generators/conan_toolchain.cmake" ]; then
+            echo "❌ Error: conan_toolchain.cmake not found"
+            echo "Contents of build directory:"
+            ls -la build/ || true
+            echo "Contents of build/generators directory:"
+            ls -la build/generators/ || true
+            exit 1
+          fi
+          echo "✅ conan_toolchain.cmake found"
+      
       - name: Configure CMake with warning flags
         run: |
           cmake -S . -B build \
             -G Ninja \
-            -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE="${PWD}/build/generators/conan_toolchain.cmake" \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_C_FLAGS="-Wall -Wextra -Werror -pedantic" \
             -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror -pedantic"
@@ -391,7 +404,7 @@ jobs:
       
       - name: Configure and build with tests
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE="${PWD}/build/generators/conan_toolchain.cmake" -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
           cmake --build build
       
       - name: Run unit tests
@@ -578,7 +591,7 @@ jobs:
       
       - name: Configure CMake
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE="${PWD}/build/generators/conan_toolchain.cmake" -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
       
       - name: Build with SonarQube wrapper
         run: |
