@@ -20,6 +20,18 @@ configure_file(
     @ONLY
 )
 
+# Add local header-only libs as INTERFACE libraries
+add_library(spdlog INTERFACE)
+target_include_directories(spdlog INTERFACE ${CMAKE_SOURCE_DIR}/libs/spdlog/include)
+target_compile_definitions(spdlog INTERFACE SPDLOG_FMT_EXTERNAL)
+
+add_library(fmt INTERFACE)
+target_include_directories(fmt INTERFACE ${CMAKE_SOURCE_DIR}/libs/fmt/include)
+target_compile_definitions(fmt INTERFACE FMT_HEADER_ONLY)
+
+add_library(autosar INTERFACE)
+target_include_directories(autosar INTERFACE ${CMAKE_SOURCE_DIR}/libs/autosar-platform-types/include)
+
 # Add cmake modules directory
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -51,5 +63,10 @@ install(DIRECTORY include/ DESTINATION include
     PATTERN "*.h"
     PATTERN "*.in" EXCLUDE
 )
+
+# Install libs headers
+install(DIRECTORY libs/autosar-platform-types/include/ DESTINATION include)
+install(DIRECTORY libs/spdlog/include/ DESTINATION include)
+install(DIRECTORY libs/fmt/include/ DESTINATION include)
 
 install(DIRECTORY docs/ DESTINATION docs)
