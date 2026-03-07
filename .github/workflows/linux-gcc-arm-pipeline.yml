@@ -531,6 +531,12 @@ jobs:
         run: |
           pip3 install "conan>=2.0"
           conan --version
+          
+      - name: Setup Conan default profile
+        run: |
+          echo "Creating default Conan profile..."
+          conan profile detect --force
+          echo "✅ Default Conan profile created"
       
       - name: Verify ARM toolchain
         run: |
