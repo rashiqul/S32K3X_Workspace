@@ -206,24 +206,19 @@ jobs:
             echo "📋 Profile uses environment variables:"
             grep "(env)" "$profile"
             
-            # Extract and verify environment variables are set
+            # Extract and verify environment variables are documented
             env_vars=$(grep -oP '\(env\)\K[A-Z_]+' "$profile" || true)
             for var in $env_vars; do
-              # Check if var is actually set in the environment
-              if [ -z "${!var}" ]; then
-                echo "  ❌ $var is required but not set in environment"
-                exit 1
-              else
-                echo "  ✅ $var is set"
-              fi
-              
               # Verify they're documented in README
               if grep -q "$var" README.md; then
-                echo "    ✅ $var is documented in README"
+                echo "  ✅ $var is documented in README"
               else
-                echo "    ⚠️  $var should be documented in README"
+                echo "  ⚠️  $var should be documented in README"
               fi
             done
+            
+            echo ""
+            echo "ℹ️  Note: Environment variable values will be validated in ARM build job"
           fi
           
           # Validate profile sections exist in raw file
@@ -579,7 +574,40 @@ jobs:
           echo "ARM Binutils:"
           arm-none-eabi-as --version | head -n1
           echo ""
+          echo "Toolchain location:"
+          which arm-none-eabi-gcc
+          echo ""
           echo "✅ ARM toolchain validated"
+      
+      - name: Set NXP_GCC_PATH for Conan profile
+        run: |
+          echo "Setting NXP_GCC_PATH environment variable..."
+          # Get the directory containing arm-none-eabi-gcc
+          toolchain_path=$(dirname $(which arm-none-eabi-gcc))
+          echo "NXP_GCC_PATH=$toolchain_path" >> $GITHUB_ENV
+          echo "✅ NXP_GCC_PATH=$toolchain_path"
+      
+      - name: Validate ARM profile environment variables
+        run: |
+          echo "🔍 Validating ARM profile environment variables..."
+          
+          profile=".conan/profiles/s32k3x_arm_cortex_m7"
+          
+          # Extract environment variables from profile
+          env_vars=$(grep -oP '\(env\)\K[A-Z_]+' "$profile" || true)
+          
+          if [ -n "$env_vars" ]; then
+            for var in $env_vars; do
+              if [ -z "${!var}" ]; then
+                echo "  ❌ $var is required but not set"
+                exit 1
+              else
+                echo "  ✅ $var=${!var}"
+              fi
+            done
+          fi
+          
+          echo "✅ All required environment variables are set"
       
       - name: Display ARM build info
         run: |
