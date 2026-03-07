@@ -237,42 +237,8 @@ jobs:
           fi
           echo "  ✅ [buildenv] section present"
           
-          # Validate resolved profile with Conan (using absolute path for Conan 2.x compatibility)
           echo ""
-          echo "Validating resolved profile settings with Conan..."
-          abs_profile="$(pwd)/$profile"
-          
-          if ! conan profile show "$abs_profile" >/dev/null 2>&1; then
-            echo "❌ Conan cannot load profile (may have syntax errors)"
-            exit 1
-          fi
-          echo "✅ Conan can load profile"
-          
-          # Validate critical settings from resolved profile output
-          echo ""
-          echo "Validating ARM-specific settings in resolved profile..."
-          profile_output=$(conan profile show "$abs_profile" 2>&1)
-          
-          if ! echo "$profile_output" | grep -q "os=baremetal"; then
-            echo "❌ Missing os=baremetal for embedded target"
-            exit 1
-          fi
-          echo "  ✅ os=baremetal"
-          
-          if ! echo "$profile_output" | grep -q "arch=armv7hf"; then
-            echo "⚠️  Expected arch=armv7hf for hard-float Cortex-M7"
-          else
-            echo "  ✅ arch=armv7hf"
-          fi
-          
-          if ! echo "$profile_output" | grep -q "compiler=gcc"; then
-            echo "❌ Missing compiler=gcc"
-            exit 1
-          fi
-          echo "  ✅ compiler=gcc"
-          
-          echo ""
-          echo "✅ Conan ARM profile validation passed"
+          echo "ℹ️  Full profile validation (with Conan) will run in ARM build job"
 
   lint-check:
     name: Code Format Verification (clang-format & shellcheck)
@@ -608,6 +574,46 @@ jobs:
           fi
           
           echo "✅ All required environment variables are set"
+      
+      - name: Validate Conan ARM profile with environment
+        run: |
+          echo "🔍 Validating Conan ARM profile with resolved environment..."
+          
+          profile=".conan/profiles/s32k3x_arm_cortex_m7"
+          abs_profile="$(pwd)/$profile"
+          
+          # Validate resolved profile with Conan (using absolute path for Conan 2.x compatibility)
+          if ! conan profile show "$abs_profile" >/dev/null 2>&1; then
+            echo "❌ Conan cannot load profile (may have syntax errors)"
+            exit 1
+          fi
+          echo "✅ Conan can load profile"
+          
+          # Validate critical settings from resolved profile output
+          echo ""
+          echo "Validating ARM-specific settings in resolved profile..."
+          profile_output=$(conan profile show "$abs_profile" 2>&1)
+          
+          if ! echo "$profile_output" | grep -q "os=baremetal"; then
+            echo "❌ Missing os=baremetal for embedded target"
+            exit 1
+          fi
+          echo "  ✅ os=baremetal"
+          
+          if ! echo "$profile_output" | grep -q "arch=armv7hf"; then
+            echo "⚠️  Expected arch=armv7hf for hard-float Cortex-M7"
+          else
+            echo "  ✅ arch=armv7hf"
+          fi
+          
+          if ! echo "$profile_output" | grep -q "compiler=gcc"; then
+            echo "❌ Missing compiler=gcc"
+            exit 1
+          fi
+          echo "  ✅ compiler=gcc"
+          
+          echo ""
+          echo "✅ Conan ARM profile fully validated"
       
       - name: Display ARM build info
         run: |
