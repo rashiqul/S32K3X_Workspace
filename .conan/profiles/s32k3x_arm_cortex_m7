@@ -1,0 +1,28 @@
+[settings]
+os=baremetal
+arch=armv7
+compiler=gcc
+compiler.version=10.2
+compiler.libcxx=libstdc++11
+compiler.cppstd=17
+build_type=Release
+
+[buildenv]
+# ARM GCC Toolchain for S32K358x (Cortex-M7)
+CC=arm-none-eabi-gcc
+CXX=arm-none-eabi-g++
+AR=arm-none-eabi-ar
+AS=arm-none-eabi-as
+LD=arm-none-eabi-ld
+OBJCOPY=arm-none-eabi-objcopy
+SIZE=arm-none-eabi-size
+PATH+=/home/rashiqul/NXP/gcc-10.2-arm32-eabi/bin
+
+[conf]
+tools.cmake.cmaketoolchain:generator=Ninja
+tools.build:compiler_executables={"c": "arm-none-eabi-gcc", "cpp": "arm-none-eabi-g++"}
+
+# Cortex-M7 specific flags
+[options]
+
+[tool_requires]
