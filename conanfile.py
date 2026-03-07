@@ -162,15 +162,12 @@ class S32K3xWorkspaceConan(ConanFile):
         if os.path.exists(config_h):
             copy(self, "config.h", src=self.build_folder, dst=os.path.join(self.package_folder, "include"))
         
-        # Copy libraries if built (for non-header-only mode)
-        if not self.options.header_only:
-            copy(self, "*.a", src=os.path.join(self.build_folder, "src"), dst=os.path.join(self.package_folder, "lib"), keep_path=False)
-            copy(self, "*.so*", src=os.path.join(self.build_folder, "src"), dst=os.path.join(self.package_folder, "lib"), keep_path=False)
-            copy(self, "*.dylib", src=os.path.join(self.build_folder, "src"), dst=os.path.join(self.package_folder, "lib"), keep_path=False)
+        # NOTE: Libraries are not packaged because the current CMake build produces
+        # s32k3x_main library which contains a main() entry point. Shipping this would
+        # cause "multiple definition of main" errors for consumers.
+        # If library packaging is needed in the future, ensure only libraries without
+        # entry points are packaged (e.g., create a separate library target without main).
 
     def package_info(self):
-        # Expose libraries only when not in header-only mode
-        if not self.options.header_only:
-            self.cpp_info.libs = ["s32k3x_main"]
-        else:
-            self.cpp_info.libs = []
+        # No libraries are packaged to avoid main() symbol conflicts
+        self.cpp_info.libs = []
