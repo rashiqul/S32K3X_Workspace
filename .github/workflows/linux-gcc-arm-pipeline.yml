@@ -532,6 +532,10 @@ jobs:
           pip3 install "conan>=2.0"
           conan --version
           
+          # Also install Conan in Poetry's virtualenv for 'poetry run conan' commands
+          poetry run pip install "conan>=2.0"
+          poetry run conan --version
+          
       - name: Setup Conan default profile
         run: |
           echo "Creating default Conan profile..."
@@ -559,8 +563,8 @@ jobs:
       - name: Set NXP_GCC_PATH for Conan profile
         run: |
           echo "Setting NXP_GCC_PATH environment variable..."
-          # Get the directory containing arm-none-eabi-gcc
-          toolchain_path=$(dirname $(which arm-none-eabi-gcc))
+          # Get the directory containing arm-none-eabi-gcc (using command -v for portability)
+          toolchain_path="$(dirname "$(command -v arm-none-eabi-gcc)")"
           echo "NXP_GCC_PATH=$toolchain_path" >> $GITHUB_ENV
           echo "✅ NXP_GCC_PATH=$toolchain_path"
       
@@ -691,8 +695,8 @@ jobs:
         run: |
           echo "🔍 Validating ARM binary architecture..."
           
-          # Find object files and libraries - check if any exist first
-          object_count=$(find build_s32k \( -name "*.o" -o -name "*.a" \) 2>/dev/null | wc -l)
+          # Find object files only (skip .a archives as 'file' doesn't inspect members)
+          object_count=$(find build_s32k -name "*.o" 2>/dev/null | wc -l)
           
           if [ "$object_count" -eq 0 ]; then
             echo "⚠️  No ARM object files found to validate"
@@ -700,7 +704,7 @@ jobs:
             exit 0
           fi
           
-          echo "Checking architecture of built artifacts:"
+          echo "Checking architecture of $object_count object file(s):"
           validation_failed=0
           
           # Use null-delimited read loop to handle paths with spaces safely
@@ -709,16 +713,16 @@ jobs:
             echo "  $obj:"
             echo "    $arch_info"
             
-            # Verify it's ARM and NOT x86
-            if echo "$arch_info" | grep -qi "ARM\|Thumb"; then
+            # Verify it's ARM and NOT x86 (using -E for portable regex)
+            if echo "$arch_info" | grep -qiE "ARM|Thumb"; then
               echo "    ✅ Correct ARM architecture"
-            elif echo "$arch_info" | grep -qi "x86\|80386\|x86-64"; then
+            elif echo "$arch_info" | grep -qiE "x86|80386|x86-64"; then
               echo "    ❌ ERROR: x86 binary detected in ARM build!"
               validation_failed=1
             else
-              echo "    ⚠️  Unknown architecture (may be archive index)"
+              echo "    ⚠️  Unknown architecture"
             fi
-          done < <(find build_s32k \( -name "*.o" -o -name "*.a" \) -print0 2>/dev/null)
+          done < <(find build_s32k -name "*.o" -print0 2>/dev/null)
           
           if [ $validation_failed -eq 1 ]; then
             echo ""
@@ -728,7 +732,7 @@ jobs:
           fi
           
           echo ""
-          echo "✅ All ARM binaries validated successfully"
+          echo "✅ All ARM object files validated successfully"
       
       - name: Upload ARM build artifacts
         if: success()
