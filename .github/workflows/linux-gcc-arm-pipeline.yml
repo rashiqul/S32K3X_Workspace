@@ -527,6 +527,11 @@ jobs:
           pip3 install poetry
           poetry --version
       
+      - name: Install Conan
+        run: |
+          pip3 install "conan>=2.0"
+          conan --version
+      
       - name: Verify ARM toolchain
         run: |
           echo "🔍 Verifying ARM toolchain..."
