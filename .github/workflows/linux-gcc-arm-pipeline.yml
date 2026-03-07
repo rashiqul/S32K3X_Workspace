@@ -90,6 +90,15 @@ jobs:
           
           base_branch="${{ github.base_ref }}"
           
+          # Only check on pull requests (base_ref is empty for push events)
+          if [ -z "$base_branch" ]; then
+            echo "⏭️  Skipping commit message check (not a PR)"
+            exit 0
+          fi
+          
+          # Fetch base branch
+          git fetch origin "$base_branch"
+          
           # Check each commit message in the PR
           set -e
           while IFS= read -r msg; do
