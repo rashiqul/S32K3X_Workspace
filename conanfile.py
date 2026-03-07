@@ -58,7 +58,9 @@ class S32K3xWorkspaceConan(ConanFile):
         pass
 
     def build_requirements(self):
-        self.test_requires("gtest/1.14.0")
+        # Skip test requirements for bare-metal targets (no OS to run tests)
+        if self.settings.os != "baremetal":
+            self.test_requires("gtest/1.14.0")
 
     def configure(self):
         if self.options.shared:
