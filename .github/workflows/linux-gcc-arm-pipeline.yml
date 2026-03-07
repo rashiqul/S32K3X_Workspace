@@ -627,6 +627,9 @@ jobs:
           # Generate coverage report in SonarQube format
           cd build_x86_64/${{ env.BUILD_TYPE }}
           
+          # Create coverage directory
+          mkdir -p coverage
+          
           # Run gcovr to generate SonarQube XML format
           gcovr --sonarqube coverage/sonarqube.xml \
             --root ../.. \
