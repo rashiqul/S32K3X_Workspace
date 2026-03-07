@@ -644,11 +644,11 @@ jobs:
           # Create coverage directory
           mkdir -p coverage
           
-          # Run gcovr to generate SonarQube XML format using gcov-11 to match GCC version
+          # Run gcovr to generate SonarQube XML format using gcov matching GCC version
           gcovr --sonarqube coverage/sonarqube.xml \
             --root ../.. \
-            --filter 'src/.*' \
-            --filter 'include/.*' \
+            --filter '^src/' \
+            --filter '^include/' \
             --exclude '.*test.*' \
             --exclude '.*/googletest/.*' \
             --gcov-executable gcov-${{ env.GCC_VERSION }}
