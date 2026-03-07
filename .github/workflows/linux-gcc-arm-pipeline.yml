@@ -528,20 +528,20 @@ jobs:
         run: |
           echo "📦 Checking ARM build artifacts..."
           
-          if [ -d "build_arm" ]; then
+          if [ -d "build_s32k" ]; then
             echo "✅ ARM build directory created"
-            ls -lh build_arm/ || true
+            ls -lh build_s32k/ || true
             
-            if [ -d "build_arm/bin" ]; then
+            if [ -d "build_s32k/bin" ]; then
               echo ""
               echo "ARM binary outputs:"
-              ls -lh build_arm/bin/ || true
+              ls -lh build_s32k/bin/ || true
             fi
             
-            if [ -d "build_arm/obj" ]; then
+            if [ -d "build_s32k/obj" ]; then
               echo ""
               echo "ARM object files:"
-              ls -lh build_arm/obj/ || true
+              ls -lh build_s32k/obj/ || true
             fi
           else
             echo "ℹ️  ARM build directory pending full implementation"
@@ -553,7 +553,7 @@ jobs:
         with:
           name: arm-build-artifacts
           path: |
-            build_arm/
+            build_s32k/
             arm_build.log
           retention-days: 7
 
