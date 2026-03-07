@@ -186,6 +186,69 @@ jobs:
           shellcheck --version | head -n1
           echo ""
           echo "✅ Environment validated"
+      
+      - name: Validate Conan ARM profile
+        run: |
+          echo "🔍 Validating Conan ARM profile..."
+          
+          profile=".conan/profiles/s32k3x_arm_cortex_m7"
+          
+          if [ ! -f "$profile" ]; then
+            echo "❌ ARM profile not found: $profile"
+            exit 1
+          fi
+          
+          echo "✅ Profile file exists"
+          
+          # Check for required environment variables in profile
+          if grep -q "(env)" "$profile"; then
+            echo ""
+            echo "📋 Profile uses environment variables:"
+            grep "(env)" "$profile"
+            
+            # Verify they're documented in README
+            env_vars=$(grep -oP '\(env\)\K[A-Z_]+' "$profile" || true)
+            for var in $env_vars; do
+              if grep -q "$var" README.md; then
+                echo "  ✅ $var is documented in README"
+              else
+                echo "  ⚠️  $var should be documented in README"
+              fi
+            done
+          fi
+          
+          # Validate profile can be loaded by Conan
+          echo ""
+          echo "Testing profile loading with Conan..."
+          
+          if conan profile show "$profile" 2>&1 | grep -q "os=baremetal"; then
+            echo "✅ Profile loads correctly"
+          else
+            echo "❌ Profile failed to load or parse"
+            conan profile show "$profile" || true
+            exit 1
+          fi
+          
+          # Validate critical settings for bare-metal ARM
+          echo ""
+          echo "Validating ARM-specific settings..."
+          
+          if ! grep -q "os=baremetal" "$profile"; then
+            echo "❌ Missing os=baremetal for embedded target"
+            exit 1
+          fi
+          
+          if ! grep -q "arch=armv7hf" "$profile"; then
+            echo "⚠️  Expected arch=armv7hf for hard-float Cortex-M7"
+          fi
+          
+          if ! grep -q "compiler=gcc" "$profile"; then
+            echo "❌ Missing compiler=gcc"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ Conan ARM profile validation passed"
 
   lint-check:
     name: Code Format Verification (clang-format & shellcheck)
@@ -546,6 +609,49 @@ jobs:
           else
             echo "ℹ️  ARM build directory pending full implementation"
           fi
+      
+      - name: Validate ARM binary architecture
+        if: success()
+        run: |
+          echo "🔍 Validating ARM binary architecture..."
+          
+          # Find object files and libraries
+          arm_objects=$(find build_s32k -name "*.o" -o -name "*.a" 2>/dev/null || true)
+          
+          if [ -z "$arm_objects" ]; then
+            echo "⚠️  No ARM object files found to validate"
+            echo "Build may be skeleton/incomplete - skipping architecture validation"
+            exit 0
+          fi
+          
+          echo "Checking architecture of built artifacts:"
+          validation_failed=0
+          
+          for obj in $arm_objects; do
+            arch_info=$(file "$obj")
+            echo "  $obj:"
+            echo "    $arch_info"
+            
+            # Verify it's ARM and NOT x86
+            if echo "$arch_info" | grep -qi "ARM\|Thumb"; then
+              echo "    ✅ Correct ARM architecture"
+            elif echo "$arch_info" | grep -qi "x86\|80386\|x86-64"; then
+              echo "    ❌ ERROR: x86 binary detected in ARM build!"
+              validation_failed=1
+            else
+              echo "    ⚠️  Unknown architecture (may be archive index)"
+            fi
+          done
+          
+          if [ $validation_failed -eq 1 ]; then
+            echo ""
+            echo "❌ ARM architecture validation failed!"
+            echo "Some binaries are x86 instead of ARM. Check toolchain configuration."
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All ARM binaries validated successfully"
       
       - name: Upload ARM build artifacts
         if: success()
