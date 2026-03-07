@@ -587,9 +587,9 @@ jobs:
           profile=".conan/profiles/s32k3x_arm_cortex_m7"
           abs_profile="$(pwd)/$profile"
           
-          # Validate resolved profile with Conan (using absolute path for Conan 2.x compatibility)
-          echo "Running: conan profile show \"$abs_profile\""
-          if ! conan profile show "$abs_profile" > /tmp/conan_profile_output.txt 2>&1; then
+          # Validate resolved profile with Conan (using -pr flag for Conan 2.x compatibility)
+          echo "Running: conan profile show -pr=\"$abs_profile\""
+          if ! conan profile show -pr="$abs_profile" > /tmp/conan_profile_output.txt 2>&1; then
             echo "❌ Conan cannot load profile. Error output:"
             cat /tmp/conan_profile_output.txt
             exit 1
