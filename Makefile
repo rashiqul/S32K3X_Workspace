@@ -177,6 +177,8 @@ help:
 	@echo "  coverage-cbd      - Generate C/C++ coverage report"
 	@echo ""
 	@echo "ARM Build Targets (for S32K358x):"
+	@echo "  conan_install_arm - Install ARM dependencies with Conan"
+	@echo "  configure_arm     - Configure ARM build with CMake/Conan"
 	@echo "  build_all_tgt     - Build firmware for ARM Cortex-M7"
 	@echo "  arm-clean         - Clean ARM build artifacts"
 	@echo "  arm-info          - Display ARM build configuration"
@@ -332,27 +334,42 @@ format:
 # ARM Build Targets
 #==============================================================================
 
+.PHONY: conan_install_arm
+conan_install_arm: pre-configure
+	@echo "Installing dependencies for ARM target with Conan..."
+	poetry run conan install . \
+		--build=missing \
+		-pr:h .conan/profiles/s32k3x_arm_cortex_m7 \
+		-pr:b .conan/profiles/s32k3x_workspace_linux \
+		-of $(ARM_BUILD_DIR)
+	@echo "ARM dependencies installed successfully."
+
+.PHONY: configure_arm
+configure_arm: conan_install_arm $(ARM_BIN_DIR) $(ARM_OBJ_DIR)
+	@echo "Configuring ARM build with CMake and Conan toolchain..."
+	. $(ARM_BUILD_DIR)/conanbuild.sh && \
+	poetry run cmake -S . -B $(ARM_BUILD_DIR) \
+		-DCMAKE_TOOLCHAIN_FILE=$(ARM_BUILD_DIR)/conan_toolchain.cmake \
+		-DCMAKE_BUILD_TYPE=Debug
+	@echo "ARM build configuration complete."
+
 .PHONY: build_all_tgt
-build_all_tgt: $(ARM_BIN_DIR) $(ARM_OBJ_DIR)
+build_all_tgt: configure_arm
 	@echo "=========================================="
 	@echo "  Building S32K3XX Firmware"
 	@echo "=========================================="
-	@echo ""
-	@echo "NOTE: This is a skeleton build. BSP and application sources need to be added."
 	@echo ""
 	@echo "Build configuration:"
 	@echo "  - Target MCU: $(TARGET_MCU)"
 	@echo "  - Compiler: $(ARM_CC)"
 	@echo "  - Build directory: $(ARM_BUILD_DIR)"
+	@echo "  - Conan Profile: s32k3x_arm_cortex_m7"
 	@echo ""
-	@echo "To complete the build, the following components are needed:"
-	@echo "  1. Startup code (reset handler, vector table)"
-	@echo "  2. Linker script (memory layout for S32K358x)"
-	@echo "  3. System initialization code"
-	@echo "  4. Application source files"
+	. $(ARM_BUILD_DIR)/conanbuild.sh && \
+	poetry run cmake --build $(ARM_BUILD_DIR) --target all
 	@echo ""
-	@echo "Skeleton build structure created successfully!"
-	@echo "Build directories: $(ARM_OBJ_DIR), $(ARM_BIN_DIR)"
+	@echo "Firmware build complete!"
+	@echo "Build artifacts: $(ARM_BIN_DIR)"
 	@echo ""
 
 $(ARM_BIN_DIR):
@@ -363,7 +380,7 @@ $(ARM_OBJ_DIR):
 
 .PHONY: arm-clean
 arm-clean:
-	@echo "Cleaning ARM build artifacts..."
+	@echo "Cleaning ARM build artifacts and Conan cache..."
 	@rm -rf $(ARM_BUILD_DIR)
 	@echo "ARM clean complete."
 
