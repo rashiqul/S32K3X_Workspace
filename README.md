@@ -12,9 +12,14 @@ Embedded firmware development workspace for NXP S32K3xx microcontrollers, primar
 
 ### Build Environment
 - **OS**: Linux (Ubuntu 20.04+ recommended)
-- **Compiler**: ARM GCC 10.2 (NXP toolchain)
-  - Location: `/home/rashiqul/NXP/gcc-10.2-arm32-eabi/bin`
+- **Python**: 3.10+ with Poetry for dependency management
+- **Conan**: 2.x for cross-compilation dependencies
+- **CMake**: 3.23+ 
+- **Ninja**: Build system
+- **Compiler**: ARM GCC 10.x (NXP toolchain)
   - Toolchain: `arm-none-eabi-gcc`
+  - Set environment variable: `export NXP_GCC_PATH=/path/to/your/gcc-arm-none-eabi/bin`
+  - Example: `export NXP_GCC_PATH=/home/user/NXP/gcc-10.2-arm32-eabi/bin`
 - **Make**: GNU Make 4.2+
 - **Git**: For version control
 
@@ -44,12 +49,24 @@ S32K3x_workspace/
 
 ## Quick Start
 
+### Setup
+
+1. Install dependencies:
+```bash
+make setup
+```
+
+2. Set ARM GCC toolchain path:
+```bash
+export NXP_GCC_PATH=/path/to/your/gcc-arm-none-eabi/bin
+```
+
 ### Building the Project
 
 To build all targets for the S32K3xx microcontroller:
 
 ```bash
-# Build all targets (generates .elf, .hex, .bin)
+# Build firmware for ARM Cortex-M7 target
 make build_all_tgt
 ```
 
@@ -57,9 +74,22 @@ make build_all_tgt
 
 The Makefile provides the following targets:
 
-- `make build_all_tgt` - Build the complete firmware for S32K3xx targets
+**ARM Build Targets (for S32K358x):**
+- `make build_all_tgt` - Build firmware for ARM Cortex-M7 target
+- `make arm-clean` - Clean ARM build artifacts
+- `make arm-info` - Display ARM build configuration
+
+**X86 Build Targets (for development/testing):**
+- `make configure` - Configure project with Conan/CMake
+- `make build` - Build x86 Debug version
+- `make build-release` - Build x86 Release version  
+- `make test` - Run unit tests
+- `make coverage` - Generate coverage reports
+
+**Utility Targets:**
 - `make clean` - Remove build artifacts
-- `make help` - Display available targets
+- `make clean-all` - Remove all artifacts (pristine state)
+- `make help` - Display all available targets
 
 ### Build Outputs
 
