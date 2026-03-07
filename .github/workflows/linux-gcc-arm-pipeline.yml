@@ -588,8 +588,10 @@ jobs:
           abs_profile="$(pwd)/$profile"
           
           # Validate resolved profile with Conan (using absolute path for Conan 2.x compatibility)
-          if ! conan profile show "$abs_profile" >/dev/null 2>&1; then
-            echo "❌ Conan cannot load profile (may have syntax errors)"
+          echo "Running: conan profile show \"$abs_profile\""
+          if ! conan profile show "$abs_profile" > /tmp/conan_profile_output.txt 2>&1; then
+            echo "❌ Conan cannot load profile. Error output:"
+            cat /tmp/conan_profile_output.txt
             exit 1
           fi
           echo "✅ Conan can load profile"
@@ -597,7 +599,7 @@ jobs:
           # Validate critical settings from resolved profile output
           echo ""
           echo "Validating ARM-specific settings in resolved profile..."
-          profile_output=$(conan profile show "$abs_profile" 2>&1)
+          profile_output=$(cat /tmp/conan_profile_output.txt)
           
           if ! echo "$profile_output" | grep -q "os=baremetal"; then
             echo "❌ Missing os=baremetal for embedded target"
