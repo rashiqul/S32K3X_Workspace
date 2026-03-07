@@ -612,10 +612,14 @@ jobs:
           echo "${SONAR_WRAPPER_SHA256}  .sonar/build-wrapper-linux-x86.zip" | sha256sum -c
           unzip -o .sonar/build-wrapper-linux-x86.zip -d .sonar/
       
-      - name: Configure CMake
+      - name: Configure CMake with coverage flags
         run: |
           TOOLCHAIN_PATH=$(find build_x86_64 -name "conan_toolchain.cmake" | head -1)
-          cmake -S . -B build_x86_64/${{ env.BUILD_TYPE }} -G Ninja -DCMAKE_TOOLCHAIN_FILE="${PWD}/${TOOLCHAIN_PATH}" -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake -S . -B build_x86_64/${{ env.BUILD_TYPE }} \
+            -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="${PWD}/${TOOLCHAIN_PATH}" \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCOVERAGE=ON
       
       - name: Build with SonarQube wrapper
         run: |
@@ -633,16 +637,21 @@ jobs:
           # Generate coverage report in SonarQube format
           cd build_x86_64/${{ env.BUILD_TYPE }}
           
+          # Clean up CMake's internal coverage files to avoid gcovr errors
+          find CMakeFiles -name "*.gcno" -delete 2>/dev/null || true
+          find CMakeFiles -name "*.gcda" -delete 2>/dev/null || true
+          
           # Create coverage directory
           mkdir -p coverage
           
-          # Run gcovr to generate SonarQube XML format
+          # Run gcovr to generate SonarQube XML format using gcov-11 to match GCC version
           gcovr --sonarqube coverage/sonarqube.xml \
             --root ../.. \
-            --filter '../../src/.*' \
-            --filter '../../include/.*' \
+            --filter 'src/.*' \
+            --filter 'include/.*' \
             --exclude '.*test.*' \
-            --exclude '.*/googletest/.*'
+            --exclude '.*/googletest/.*' \
+            --gcov-executable gcov-${{ env.GCC_VERSION }}
           
           echo "✅ Coverage report generated: coverage/sonarqube.xml"
           
