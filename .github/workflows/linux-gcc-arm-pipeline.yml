@@ -563,7 +563,7 @@ jobs:
       SONAR_WRAPPER_SHA256: "779134ecc95e54a141b7f459a59145685837aafd0098dd8d3c0a54f45e866291"
       # SHA256 checksum of sonar-scanner-cli-6.2.1.4610-linux-x64.zip
       # To get current SHA256: curl -sL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-6.2.1.4610-linux-x64.zip | sha256sum
-      SONAR_SCANNER_SHA256: "a10e97eaa60557cb2fdb764e284689956e8a814d1d3e6d48fb6e5d8e4e3c5a2f"
+      SONAR_SCANNER_SHA256: "0b8a3049f0bd5de7abc1582c78c233960d3d4ed7cc983a1d1635e8552f8bb439"
     
     steps:
       - name: Checkout code
