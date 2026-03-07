@@ -407,9 +407,16 @@ clean:
 	find . -type d -name __pycache__ | xargs rm -rf
 
 clean-all: clean
-	@echo "Removing all dependencies and virtual environments..."
+	@echo "🧹 Deep cleaning project - removing all caches and dependencies..."
+	@echo "Removing local Conan data..."
 	rm -rf .conan2_local poetry.lock
-	@echo "Project reset to pristine state"
+	@echo "Removing project .venv..."
+	rm -rf .venv
+	@echo "Clearing Poetry cache..."
+	poetry cache clear --all pypi -n 2>/dev/null || true
+	@echo "Removing Conan cache..."
+	rm -rf ~/.conan2 ~/.conan
+	@echo "✅ Project reset to pristine state"
 
 .DEFAULT:
 	. ${BUILD_DIR}/generators/conanbuild.sh && poetry run cmake --build ${BUILD_DIR} --target $@
