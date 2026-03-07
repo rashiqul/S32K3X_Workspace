@@ -67,18 +67,29 @@ jobs:
             exit 0
           fi
           
-          # Fetch both branches
+          # Fetch base branch from origin
           git fetch origin "$base_branch"
-          git fetch origin "$head_branch"
+          
+          # For PRs from forks, fetch the head branch from the PR head repo
+          # For PRs from same repo, fetch from origin
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "📦 Fetching PR branch from fork: ${{ github.event.pull_request.head.repo.full_name }}"
+            git fetch "https://github.com/${{ github.event.pull_request.head.repo.full_name }}" "$head_branch"
+            head_ref="FETCH_HEAD"
+          else
+            echo "📦 Fetching PR branch from origin"
+            git fetch origin "$head_branch"
+            head_ref="origin/$head_branch"
+          fi
           
           # Check if PR branch has merge commits (excluding merges from base)
           # Use the actual PR branch, not HEAD which might be a GitHub merge commit
-          merge_commits=$(git log --merges --oneline "origin/$base_branch..origin/$head_branch" | wc -l)
+          merge_commits=$(git log --merges --oneline "origin/$base_branch..$head_ref" | wc -l)
           
           if [ "$merge_commits" -gt 0 ]; then
             echo "❌ Non-linear history detected. Found $merge_commits merge commit(s)."
             echo "Please rebase your branch on top of $base_branch"
-            git log --merges --oneline "origin/$base_branch..origin/$head_branch"
+            git log --merges --oneline "origin/$base_branch..$head_ref"
             exit 1
           fi
           
