@@ -169,4 +169,8 @@ class S32K3xWorkspaceConan(ConanFile):
             copy(self, "*.dylib", src=os.path.join(self.build_folder, "src"), dst=os.path.join(self.package_folder, "lib"), keep_path=False)
 
     def package_info(self):
-        self.cpp_info.libs = []
+        # Expose libraries only when not in header-only mode
+        if not self.options.header_only:
+            self.cpp_info.libs = ["s32k3x_main"]
+        else:
+            self.cpp_info.libs = []
