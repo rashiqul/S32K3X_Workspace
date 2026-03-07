@@ -43,8 +43,8 @@ if(COVERAGE)
 endif()
 message(STATUS "COVERAGE=${COVERAGE}")
 
-# Find GTest from Conan (for x86 testing)
-if(CMAKE_BUILD_TYPE MATCHES "Debug|Release")
+# Find GTest from Conan (for x86 testing only, not for bare-metal)
+if(CMAKE_BUILD_TYPE MATCHES "Debug|Release" AND NOT CMAKE_CROSSCOMPILING)
     find_package(GTest CONFIG REQUIRED)
 endif()
 

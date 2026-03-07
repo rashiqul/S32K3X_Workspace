@@ -177,8 +177,6 @@ help:
 	@echo "  coverage-cbd      - Generate C/C++ coverage report"
 	@echo ""
 	@echo "ARM Build Targets (for S32K358x):"
-	@echo "  conan_install_arm - Install ARM dependencies with Conan"
-	@echo "  configure_arm     - Configure ARM build with CMake/Conan"
 	@echo "  build_all_tgt     - Build firmware for ARM Cortex-M7"
 	@echo "  arm-clean         - Clean ARM build artifacts"
 	@echo "  arm-info          - Display ARM build configuration"
@@ -334,45 +332,41 @@ format:
 # ARM Build Targets
 #==============================================================================
 
-.PHONY: conan_install_arm
-conan_install_arm: pre-configure
-	@echo "Installing dependencies for ARM target with Conan..."
-	poetry run conan install . \
+.PHONY: build_all_tgt
+build_all_tgt: pre-configure $(ARM_BIN_DIR) $(ARM_OBJ_DIR)
+	@echo "=========================================="
+	@echo "  Building S32K3XX Firmware"
+	@echo "=========================================="
+	@echo ""
+	@echo "Installing ARM dependencies with Conan..."
+	@poetry run conan install . \
 		--build=missing \
 		-pr:h .conan/profiles/s32k3x_arm_cortex_m7 \
 		-pr:b .conan/profiles/s32k3x_workspace_linux \
 		-s build_type=Release \
 		-of $(ARM_BUILD_DIR)
-	@echo "ARM dependencies installed successfully."
-
-.PHONY: configure_arm
-configure_arm: conan_install_arm $(ARM_BIN_DIR) $(ARM_OBJ_DIR)
-	@echo "Configuring ARM build with CMake and Conan toolchain..."
+	@echo ""
+	@echo "Configuring ARM build with CMake..."
 	@CONAN_GEN_DIR=$$(find $(ARM_BUILD_DIR) -name "conan_toolchain.cmake" -exec dirname {} \; | head -1); \
 	. $$CONAN_GEN_DIR/conanbuild.sh && \
 	poetry run cmake -S . -B $(ARM_BUILD_DIR) \
 		-DCMAKE_TOOLCHAIN_FILE=$$CONAN_GEN_DIR/conan_toolchain.cmake \
 		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
 		-G Ninja
-	@echo "ARM build configuration complete."
-
-.PHONY: build_all_tgt
-build_all_tgt: configure_arm
-	@echo "=========================================="
-	@echo "  Building S32K3XX Firmware"
-	@echo "=========================================="
 	@echo ""
-	@echo "Build configuration:"
-	@echo "  - Target MCU: $(TARGET_MCU)"
-	@echo "  - Compiler: $(ARM_CC)"
-	@echo "  - Build directory: $(ARM_BUILD_DIR)"
-	@echo "  - Conan Profile: s32k3x_arm_cortex_m7"
-	@echo ""
+	@echo "Building firmware..."
 	@CONAN_GEN_DIR=$$(find $(ARM_BUILD_DIR) -name "conan_toolchain.cmake" -exec dirname {} \; | head -1); \
 	. $$CONAN_GEN_DIR/conanbuild.sh && \
 	poetry run cmake --build $(ARM_BUILD_DIR) --config Release
 	@echo ""
-	@echo "Firmware build complete!"
+	@echo "=========================================="
+	@echo "  Firmware Build Complete!"
+	@echo "=========================================="
+	@echo "Target MCU:      $(TARGET_MCU)"
+	@echo "Compiler:        $(ARM_CC)"
+	@echo "Build directory: $(ARM_BUILD_DIR)"
+	@echo "Conan Profile:   s32k3x_arm_cortex_m7"
 	@echo "Build artifacts: $(ARM_BIN_DIR)"
 	@echo ""
 
