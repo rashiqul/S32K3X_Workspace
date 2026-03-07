@@ -1,14 +1,16 @@
 [settings]
 os=baremetal
-arch=armv7
+arch=armv7hf
 compiler=gcc
-compiler.version=10.2
+compiler.version=10
 compiler.libcxx=libstdc++11
 compiler.cppstd=17
 build_type=Release
 
 [buildenv]
 # ARM GCC Toolchain for S32K358x (Cortex-M7)
+# Set NXP_GCC_PATH environment variable to point to your ARM GCC bin directory
+# Example: export NXP_GCC_PATH=/home/user/NXP/gcc-10.2-arm32-eabi/bin
 CC=arm-none-eabi-gcc
 CXX=arm-none-eabi-g++
 AR=arm-none-eabi-ar
@@ -16,7 +18,7 @@ AS=arm-none-eabi-as
 LD=arm-none-eabi-ld
 OBJCOPY=arm-none-eabi-objcopy
 SIZE=arm-none-eabi-size
-PATH+=/home/rashiqul/NXP/gcc-10.2-arm32-eabi/bin
+PATH+=(env)NXP_GCC_PATH
 
 [conf]
 tools.cmake.cmaketoolchain:generator=Ninja

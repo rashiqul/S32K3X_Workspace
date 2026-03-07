@@ -342,12 +342,13 @@ build_all_tgt: pre-configure $(ARM_BIN_DIR) $(ARM_OBJ_DIR)
 	@poetry run conan install . \
 		--build=missing \
 		-pr:h .conan/profiles/s32k3x_arm_cortex_m7 \
-		-pr:b .conan/profiles/s32k3x_workspace_linux \
+		-pr:b $(CONAN_BUILD_PROFILE) \
 		-s build_type=Release \
 		-of $(ARM_BUILD_DIR)
 	@echo ""
 	@echo "Configuring ARM build with CMake..."
 	@CONAN_GEN_DIR=$$(find $(ARM_BUILD_DIR) -name "conan_toolchain.cmake" -exec dirname {} \; | head -1); \
+	test -n "$$CONAN_GEN_DIR" || { echo "Error: conan_toolchain.cmake not found"; exit 1; }; \
 	. $$CONAN_GEN_DIR/conanbuild.sh && \
 	poetry run cmake -S . -B $(ARM_BUILD_DIR) \
 		-DCMAKE_TOOLCHAIN_FILE=$$CONAN_GEN_DIR/conan_toolchain.cmake \
@@ -357,6 +358,7 @@ build_all_tgt: pre-configure $(ARM_BIN_DIR) $(ARM_OBJ_DIR)
 	@echo ""
 	@echo "Building firmware..."
 	@CONAN_GEN_DIR=$$(find $(ARM_BUILD_DIR) -name "conan_toolchain.cmake" -exec dirname {} \; | head -1); \
+	test -n "$$CONAN_GEN_DIR" || { echo "Error: conan_toolchain.cmake not found"; exit 1; }; \
 	. $$CONAN_GEN_DIR/conanbuild.sh && \
 	poetry run cmake --build $(ARM_BUILD_DIR) --config Release
 	@echo ""
@@ -378,7 +380,7 @@ $(ARM_OBJ_DIR):
 
 .PHONY: arm-clean
 arm-clean:
-	@echo "Cleaning ARM build artifacts and Conan cache..."
+	@echo "Cleaning ARM build artifacts..."
 	@rm -rf $(ARM_BUILD_DIR)
 	@echo "ARM clean complete."
 
