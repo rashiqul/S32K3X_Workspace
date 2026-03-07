@@ -88,7 +88,7 @@ ARM_GDB = $(TOOLCHAIN_PATH)/arm-none-eabi-gdb
 ARM_SRC_DIR = src
 ARM_INC_DIR = include
 ARM_BSP_DIR = bsp
-ARM_BUILD_DIR = build_arm
+ARM_BUILD_DIR = build_s32k
 ARM_OBJ_DIR = $(ARM_BUILD_DIR)/obj
 ARM_BIN_DIR = $(ARM_BUILD_DIR)/bin
 
@@ -218,8 +218,8 @@ all: configure build-release test lint
 .PHONY: lint check
 lint check:
 	poetry check -v
-	poetry run black --check $(PYTHON_FILES) --exclude "build_x86_64|build_arm|.conan2_local"
-	poetry run ruff $(PYTHON_FILES) --exclude "build_x86_64,build_arm,.conan2_local"
+	poetry run black --check $(PYTHON_FILES) --exclude "build_x86_64|build_s32k|.conan2_local"
+	poetry run ruff $(PYTHON_FILES) --exclude "build_x86_64,build_s32k,.conan2_local"
 
 .PHONY: setup
 setup:
@@ -341,16 +341,19 @@ conan_install_arm: pre-configure
 		--build=missing \
 		-pr:h .conan/profiles/s32k3x_arm_cortex_m7 \
 		-pr:b .conan/profiles/s32k3x_workspace_linux \
+		-s build_type=Release \
 		-of $(ARM_BUILD_DIR)
 	@echo "ARM dependencies installed successfully."
 
 .PHONY: configure_arm
 configure_arm: conan_install_arm $(ARM_BIN_DIR) $(ARM_OBJ_DIR)
 	@echo "Configuring ARM build with CMake and Conan toolchain..."
-	. $(ARM_BUILD_DIR)/conanbuild.sh && \
+	@CONAN_GEN_DIR=$$(find $(ARM_BUILD_DIR) -name "conan_toolchain.cmake" -exec dirname {} \; | head -1); \
+	. $$CONAN_GEN_DIR/conanbuild.sh && \
 	poetry run cmake -S . -B $(ARM_BUILD_DIR) \
-		-DCMAKE_TOOLCHAIN_FILE=$(ARM_BUILD_DIR)/conan_toolchain.cmake \
-		-DCMAKE_BUILD_TYPE=Debug
+		-DCMAKE_TOOLCHAIN_FILE=$$CONAN_GEN_DIR/conan_toolchain.cmake \
+		-DCMAKE_BUILD_TYPE=Release \
+		-G Ninja
 	@echo "ARM build configuration complete."
 
 .PHONY: build_all_tgt
@@ -365,8 +368,9 @@ build_all_tgt: configure_arm
 	@echo "  - Build directory: $(ARM_BUILD_DIR)"
 	@echo "  - Conan Profile: s32k3x_arm_cortex_m7"
 	@echo ""
-	. $(ARM_BUILD_DIR)/conanbuild.sh && \
-	poetry run cmake --build $(ARM_BUILD_DIR) --target all
+	@CONAN_GEN_DIR=$$(find $(ARM_BUILD_DIR) -name "conan_toolchain.cmake" -exec dirname {} \; | head -1); \
+	. $$CONAN_GEN_DIR/conanbuild.sh && \
+	poetry run cmake --build $(ARM_BUILD_DIR) --config Release
 	@echo ""
 	@echo "Firmware build complete!"
 	@echo "Build artifacts: $(ARM_BIN_DIR)"
@@ -418,8 +422,8 @@ arm-info:
 
 .PHONY: clean clean-all
 clean:
-	rm -rf build build_x86_64 build_arm
-	find . -type d -name "build*" -not -name "build_arm" | xargs rm -rf
+	rm -rf build build_x86_64 build_s32k
+	find . -type d -name "build*" -not -name "build_s32k" | xargs rm -rf
 	rm -rf .benchmark .coverage .venv .*_cache site
 	find . -type d -name __pycache__ | xargs rm -rf
 
