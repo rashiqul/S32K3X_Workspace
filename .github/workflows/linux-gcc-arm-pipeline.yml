@@ -206,40 +206,30 @@ jobs:
             echo "📋 Profile uses environment variables:"
             grep "(env)" "$profile"
             
-            # Verify they're documented in README
+            # Extract and verify environment variables are set
             env_vars=$(grep -oP '\(env\)\K[A-Z_]+' "$profile" || true)
             for var in $env_vars; do
-              if grep -q "$var" README.md; then
-                echo "  ✅ $var is documented in README"
+              # Check if var is actually set in the environment
+              if [ -z "${!var}" ]; then
+                echo "  ❌ $var is required but not set in environment"
+                exit 1
               else
-                echo "  ⚠️  $var should be documented in README"
+                echo "  ✅ $var is set"
+              fi
+              
+              # Verify they're documented in README
+              if grep -q "$var" README.md; then
+                echo "    ✅ $var is documented in README"
+              else
+                echo "    ⚠️  $var should be documented in README"
               fi
             done
           fi
           
-          # Validate critical settings for bare-metal ARM
+          # Validate profile sections exist in raw file
           echo ""
-          echo "Validating ARM-specific settings..."
+          echo "Validating profile file structure..."
           
-          if ! grep -q "os=baremetal" "$profile"; then
-            echo "❌ Missing os=baremetal for embedded target"
-            exit 1
-          fi
-          echo "  ✅ os=baremetal"
-          
-          if ! grep -q "arch=armv7hf" "$profile"; then
-            echo "⚠️  Expected arch=armv7hf for hard-float Cortex-M7"
-          else
-            echo "  ✅ arch=armv7hf"
-          fi
-          
-          if ! grep -q "compiler=gcc" "$profile"; then
-            echo "❌ Missing compiler=gcc"
-            exit 1
-          fi
-          echo "  ✅ compiler=gcc"
-          
-          # Validate profile sections exist
           if ! grep -q "\[settings\]" "$profile"; then
             echo "❌ Missing [settings] section"
             exit 1
@@ -252,16 +242,39 @@ jobs:
           fi
           echo "  ✅ [buildenv] section present"
           
-          # Test profile with Conan (using absolute path for Conan 2.x compatibility)
+          # Validate resolved profile with Conan (using absolute path for Conan 2.x compatibility)
           echo ""
-          echo "Testing profile detection with Conan..."
+          echo "Validating resolved profile settings with Conan..."
           abs_profile="$(pwd)/$profile"
-          if conan profile show "$abs_profile" >/dev/null 2>&1; then
-            echo "✅ Conan can load profile"
-          else
-            echo "⚠️  Conan profile show command unavailable or syntax changed"
-            echo "Profile validation passed based on content checks"
+          
+          if ! conan profile show "$abs_profile" >/dev/null 2>&1; then
+            echo "❌ Conan cannot load profile (may have syntax errors)"
+            exit 1
           fi
+          echo "✅ Conan can load profile"
+          
+          # Validate critical settings from resolved profile output
+          echo ""
+          echo "Validating ARM-specific settings in resolved profile..."
+          profile_output=$(conan profile show "$abs_profile" 2>&1)
+          
+          if ! echo "$profile_output" | grep -q "os=baremetal"; then
+            echo "❌ Missing os=baremetal for embedded target"
+            exit 1
+          fi
+          echo "  ✅ os=baremetal"
+          
+          if ! echo "$profile_output" | grep -q "arch=armv7hf"; then
+            echo "⚠️  Expected arch=armv7hf for hard-float Cortex-M7"
+          else
+            echo "  ✅ arch=armv7hf"
+          fi
+          
+          if ! echo "$profile_output" | grep -q "compiler=gcc"; then
+            echo "❌ Missing compiler=gcc"
+            exit 1
+          fi
+          echo "  ✅ compiler=gcc"
           
           echo ""
           echo "✅ Conan ARM profile validation passed"
@@ -631,10 +644,10 @@ jobs:
         run: |
           echo "🔍 Validating ARM binary architecture..."
           
-          # Find object files and libraries
-          arm_objects=$(find build_s32k -name "*.o" -o -name "*.a" 2>/dev/null || true)
+          # Find object files and libraries - check if any exist first
+          object_count=$(find build_s32k \( -name "*.o" -o -name "*.a" \) 2>/dev/null | wc -l)
           
-          if [ -z "$arm_objects" ]; then
+          if [ "$object_count" -eq 0 ]; then
             echo "⚠️  No ARM object files found to validate"
             echo "Build may be skeleton/incomplete - skipping architecture validation"
             exit 0
@@ -643,7 +656,8 @@ jobs:
           echo "Checking architecture of built artifacts:"
           validation_failed=0
           
-          for obj in $arm_objects; do
+          # Use null-delimited read loop to handle paths with spaces safely
+          while IFS= read -r -d '' obj; do
             arch_info=$(file "$obj")
             echo "  $obj:"
             echo "    $arch_info"
@@ -657,7 +671,7 @@ jobs:
             else
               echo "    ⚠️  Unknown architecture (may be archive index)"
             fi
-          done
+          done < <(find build_s32k \( -name "*.o" -o -name "*.a" \) -print0 2>/dev/null)
           
           if [ $validation_failed -eq 1 ]; then
             echo ""
