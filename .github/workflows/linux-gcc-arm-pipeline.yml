@@ -208,14 +208,24 @@ jobs:
             
             # Extract and verify environment variables are documented
             env_vars=$(grep -oP '\(env\)\K[A-Z_]+' "$profile" || true)
+            missing_docs=()
             for var in $env_vars; do
               # Verify they're documented in README
               if grep -q "$var" README.md; then
                 echo "  ✅ $var is documented in README"
               else
-                echo "  ⚠️  $var should be documented in README"
+                echo "  ❌ $var is NOT documented in README"
+                missing_docs+=("$var")
               fi
             done
+            
+            # Fail if any env vars lack documentation
+            if [ ${#missing_docs[@]} -ne 0 ]; then
+              echo ""
+              echo "❌ ERROR: Environment variables must be documented in README.md:"
+              printf '  - %s\n' "${missing_docs[@]}"
+              exit 1
+            fi
             
             echo ""
             echo "ℹ️  Note: Environment variable values will be validated in ARM build job"
@@ -618,10 +628,11 @@ jobs:
           echo "  ✅ os=baremetal"
           
           if ! echo "$profile_output" | grep -q "arch=armv7hf"; then
-            echo "⚠️  Expected arch=armv7hf for hard-float Cortex-M7"
-          else
-            echo "  ✅ arch=armv7hf"
+            echo "❌ Missing arch=armv7hf for hard-float Cortex-M7"
+            echo "The S32K358x requires ARMv7-M with hardware floating point"
+            exit 1
           fi
+          echo "  ✅ arch=armv7hf"
           
           if ! echo "$profile_output" | grep -q "compiler=gcc"; then
             echo "❌ Missing compiler=gcc"
