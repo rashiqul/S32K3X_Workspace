@@ -537,19 +537,16 @@ jobs:
           pip3 install poetry
           poetry --version
       
-      - name: Install Conan
+      - name: Install Conan in Poetry's virtualenv
         run: |
-          pip3 install "conan>=2.0"
-          conan --version
-          
-          # Also install Conan in Poetry's virtualenv for 'poetry run conan' commands
+          # Install Conan in Poetry's virtualenv and use it consistently via 'poetry run conan'
           poetry run pip install "conan>=2.0"
           poetry run conan --version
           
       - name: Setup Conan default profile
         run: |
           echo "Creating default Conan profile..."
-          conan profile detect --force
+          poetry run conan profile detect --force
           echo "✅ Default Conan profile created"
       
       - name: Verify ARM toolchain
@@ -608,8 +605,8 @@ jobs:
           abs_profile="$(pwd)/$profile"
           
           # Validate resolved profile with Conan (using -pr flag for Conan 2.x compatibility)
-          echo "Running: conan profile show -pr=\"$abs_profile\""
-          if ! conan profile show -pr="$abs_profile" > /tmp/conan_profile_output.txt 2>&1; then
+          echo "Running: poetry run conan profile show -pr=\"$abs_profile\""
+          if ! poetry run conan profile show -pr="$abs_profile" > /tmp/conan_profile_output.txt 2>&1; then
             echo "❌ Conan cannot load profile. Error output:"
             cat /tmp/conan_profile_output.txt
             exit 1
@@ -706,34 +703,86 @@ jobs:
         run: |
           echo "🔍 Validating ARM binary architecture..."
           
-          # Find object files only (skip .a archives as 'file' doesn't inspect members)
+          # Find object files and archive files
           object_count=$(find build_s32k -name "*.o" 2>/dev/null | wc -l)
+          archive_count=$(find build_s32k -name "*.a" 2>/dev/null | wc -l)
           
-          if [ "$object_count" -eq 0 ]; then
-            echo "⚠️  No ARM object files found to validate"
+          if [ "$object_count" -eq 0 ] && [ "$archive_count" -eq 0 ]; then
+            echo "⚠️  No ARM object files or archives found to validate"
             echo "Build may be skeleton/incomplete - skipping architecture validation"
             exit 0
           fi
           
-          echo "Checking architecture of $object_count object file(s):"
+          echo "Found:"
+          echo "  - $object_count object file(s)"
+          echo "  - $archive_count archive file(s)"
+          echo ""
           validation_failed=0
           
-          # Use null-delimited read loop to handle paths with spaces safely
-          while IFS= read -r -d '' obj; do
-            arch_info=$(file "$obj")
-            echo "  $obj:"
-            echo "    $arch_info"
-            
-            # Verify it's ARM and NOT x86 (using -E for portable regex)
-            if echo "$arch_info" | grep -qiE "ARM|Thumb"; then
-              echo "    ✅ Correct ARM architecture"
-            elif echo "$arch_info" | grep -qiE "x86|80386|x86-64"; then
-              echo "    ❌ ERROR: x86 binary detected in ARM build!"
-              validation_failed=1
-            else
-              echo "    ⚠️  Unknown architecture"
-            fi
-          done < <(find build_s32k -name "*.o" -print0 2>/dev/null)
+          # Validate object files
+          if [ "$object_count" -gt 0 ]; then
+            echo "Checking architecture of object files:"
+            # Use null-delimited read loop to handle paths with spaces safely
+            while IFS= read -r -d '' obj; do
+              arch_info=$(file "$obj")
+              echo "  $obj:"
+              echo "    $arch_info"
+              
+              # Verify it's ARM and NOT x86 (using -E for portable regex)
+              if echo "$arch_info" | grep -qiE "ARM|Thumb"; then
+                echo "    ✅ Correct ARM architecture"
+              elif echo "$arch_info" | grep -qiE "x86|80386|x86-64"; then
+                echo "    ❌ ERROR: x86 binary detected in ARM build!"
+                validation_failed=1
+              else
+                echo "    ⚠️  Unknown architecture"
+              fi
+            done < <(find build_s32k -name "*.o" -print0 2>/dev/null)
+          fi
+          
+          # Validate archive members (static libraries)
+          if [ "$archive_count" -gt 0 ]; then
+            echo ""
+            echo "Checking architecture of archive members:"
+            while IFS= read -r -d '' archive; do
+              echo "  Archive: $archive"
+              
+              # Extract and validate each member
+              temp_dir=$(mktemp -d)
+              (cd "$temp_dir" && ar x "$OLDPWD/$archive" 2>/dev/null) || {
+                echo "    ⚠️  Could not extract archive (may be empty or invalid)"
+                rmdir "$temp_dir" 2>/dev/null || rm -rf "$temp_dir"
+                continue
+              }
+              
+              # Check each extracted object file
+              member_count=0
+              for member in "$temp_dir"/*; do
+                if [ -f "$member" ]; then
+                  member_count=$((member_count + 1))
+                  member_name=$(basename "$member")
+                  arch_info=$(file "$member")
+                  echo "    Member: $member_name"
+                  echo "      $arch_info"
+                  
+                  if echo "$arch_info" | grep -qiE "ARM|Thumb"; then
+                    echo "      ✅ Correct ARM architecture"
+                  elif echo "$arch_info" | grep -qiE "x86|80386|x86-64"; then
+                    echo "      ❌ ERROR: x86 binary detected in ARM archive!"
+                    validation_failed=1
+                  else
+                    echo "      ⚠️  Unknown architecture"
+                  fi
+                fi
+              done
+              
+              rm -rf "$temp_dir"
+              
+              if [ "$member_count" -eq 0 ]; then
+                echo "    ℹ️  Archive is empty"
+              fi
+            done < <(find build_s32k -name "*.a" -print0 2>/dev/null)
+          fi
           
           if [ $validation_failed -eq 1 ]; then
             echo ""
@@ -743,7 +792,7 @@ jobs:
           fi
           
           echo ""
-          echo "✅ All ARM object files validated successfully"
+          echo "✅ All ARM binaries validated successfully"
       
       - name: Upload ARM build artifacts
         if: success()
