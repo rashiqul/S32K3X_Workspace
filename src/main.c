@@ -2,71 +2,77 @@
  *
  * File Name: main.c
  * Project: S32K3X Workspace
- * Description: Main application entry point
+ * Description: MCU bring-up and clock validation entry point
  * Author: Mohammad Rashiqul Alam
  *
  * Copyright (c) 2026 Mohammad Rashiqul Alam. All rights reserved.
  *
  ******************************************************************************/
 
-#include <stdint.h>
-
-/* Application loop counter for testing */
-static volatile uint32_t g_loop_count = 0;
-
-/**
- * @brief Initialize system hardware (placeholder)
- */
-void system_init(void)
-{
-    /* System initialization will be added here */
-    /* Clock configuration */
-    /* Peripheral initialization */
-}
-
-/**
- * @brief Application initialization (placeholder)
- */
-void app_init(void)
-{
-    /* Application-specific initialization */
-}
-
-/**
- * @brief Main application task (placeholder)
- */
-void app_task(void)
-{
-    /* Main application logic */
-    g_loop_count++;
-}
-
-/**
- * @brief Main function - Entry point for the application
- *
- * For S32K358x (ARM Cortex-M7): Runs in infinite loop
- * For x86 testing: Compiled out when UNIT_TEST_BUILD is defined
- *
- * @return Should never return in embedded systems
- */
 #ifndef UNIT_TEST_BUILD
+
+#include "Mcu.h"
+
+#define CLOCKOUT_FREQ_CFG_0 ((uint64)20000000U)
+#define CLOCKOUT_FREQ_CFG_1 ((uint64)6000000U)
+
+/* Exposed for debugger inspection after bring-up. */
+static volatile uint8 g_clock_validation_result = 0U;
+
+static boolean clock_frequency_matches(uint64 expected_hz)
+{
+    return (Mcu_GetClockFrequency(CLKOUT_RUN_CLK) == expected_hz) ? TRUE : FALSE;
+}
+
 int main(void)
 {
-    /* System initialization */
-    system_init();
+    boolean result = TRUE;
 
-    /* Initialize peripherals */
-    app_init();
-
-#ifdef S32K358
-    /* Embedded target - infinite loop */
-    while (1) {
-        app_task();
-    }
+#if (MCU_PRECOMPILE_SUPPORT == STD_ON)
+    Mcu_Init(NULL_PTR);
 #else
-    /* Testing on x86 - run once and return for testability */
-    app_task();
-    return 0;
+    Mcu_Init(&Mcu_Config);
 #endif
+
+    if (E_OK != Mcu_InitClock(McuClockSettingConfig_0))
+    {
+        result = FALSE;
+    }
+
+#if (MCU_NO_PLL == STD_OFF)
+    while (MCU_PLL_LOCKED != Mcu_GetPllStatus())
+    {
+        /* Busy wait until PLL lock. */
+    }
+
+    if (E_OK != Mcu_DistributePllClock())
+    {
+        result = FALSE;
+    }
+#endif
+
+    Mcu_SetMode(McuModeSettingConf_0);
+
+    if (FALSE == clock_frequency_matches(CLOCKOUT_FREQ_CFG_0))
+    {
+        result = FALSE;
+    }
+
+    if (E_OK != Mcu_InitClock(McuClockSettingConfig_1))
+    {
+        result = FALSE;
+    }
+
+    if (FALSE == clock_frequency_matches(CLOCKOUT_FREQ_CFG_1))
+    {
+        result = FALSE;
+    }
+
+    g_clock_validation_result = (TRUE == result) ? 1U : 0U;
+
+    while (1)
+    {
+    }
 }
+
 #endif /* UNIT_TEST_BUILD */
