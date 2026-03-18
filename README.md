@@ -113,14 +113,23 @@ Build artifacts are generated in the `build/` directory:
 
 ## BSP Integration
 
-The Board Support Package (BSP) will include:
-- **Startup Code**: Reset handler, vector table, system initialization
-- **Linker Scripts**: Memory layout for S32K358x (Flash/RAM regions)
-- **Peripheral Drivers**: GPIO, UART, CAN, ADC, PWM, etc.
-- **Clock Configuration**: PLL, clock gating, and system clocks
-- **CMSIS**: ARM Cortex Microcontroller Software Interface Standard
+The Board Support Package (BSP) files will be integrated using **S32 Design Studio**.
 
-> **Note**: BSP components will be integrated incrementally as the project evolves.
+**Recommended Approach**:
+1. Create a Hello World project in S32 Design Studio for S32K358
+2. Let S32DS auto-generate all BSP files (startup, linker, device headers)
+3. Copy the generated BSP files to the `bsp/` directory
+4. Update `bsp/CMakeLists.txt` to build the BSP library
+
+For detailed instructions, see: [docs/BSP_INTEGRATION_GUIDE.md](docs/BSP_INTEGRATION_GUIDE.md)
+
+**Required BSP Files**:
+- **Startup Code**: Reset handler, vector table (`startup_s32k358.s`, `system_s32k358.c`)
+- **Linker Scripts**: Memory layout for S32K358x (`s32k358_flash.ld`)
+- **Device Headers**: Peripheral registers (`s32k358.h`, `system_s32k358.h`)
+- **Peripheral Drivers**: GPIO, UART, CAN, ADC, PWM, etc. (optional, add as needed)
+
+> **Note**: BSP files are being integrated from S32 Design Studio project generation.
 
 ## S32K358x Features
 
