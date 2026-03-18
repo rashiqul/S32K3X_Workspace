@@ -3,6 +3,10 @@ project(S32K3xWorkspace)
 enable_testing()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+if(CMAKE_CROSSCOMPILING)
+    enable_language(ASM)
+endif()
+
 # Options
 option(ENABLE_WARNINGS_SETTINGS "Allow target_set_warnings to add flags and defines." ON)
 option(ENABLE_LTO "Enable link time optimization" ON)
@@ -50,6 +54,10 @@ endif()
 
 # Simplified cmake configuration for local development
 include(GNUInstallDirs)
+
+if(CMAKE_CROSSCOMPILING)
+    add_subdirectory(bsp)
+endif()
 
 add_subdirectory(src)
 
