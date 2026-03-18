@@ -19,6 +19,10 @@ if(CMAKE_CROSSCOMPILING)
         -mlittle-endian
         -mfloat-abi=hard
         -mfpu=fpv5-sp-d16
+        -funsigned-char
+        -fno-short-enums
+        -funsigned-bitfields
+        -fno-common
     )
     target_link_libraries(s32k3x_firmware PRIVATE s32k3_bsp)
     set_target_properties(s32k3x_firmware PROPERTIES

@@ -41,6 +41,17 @@ file(GLOB BSP_STARTUP_SOURCES CONFIGURE_DEPENDS
 	"${CMAKE_CURRENT_SOURCE_DIR}/startup/*.s"
 )
 
+set(BSP_STARTUP_ASM_SOURCES
+	"${CMAKE_CURRENT_SOURCE_DIR}/startup/Vector_Table.s"
+	"${CMAKE_CURRENT_SOURCE_DIR}/startup/startup_cm7.s"
+)
+
+foreach(ASM_SRC IN LISTS BSP_STARTUP_ASM_SOURCES)
+	if(EXISTS "${ASM_SRC}")
+		set_source_files_properties(${ASM_SRC} PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp")
+	endif()
+endforeach()
+
 file(GLOB BSP_RTD_SOURCES CONFIGURE_DEPENDS
 	"${CMAKE_CURRENT_SOURCE_DIR}/drivers/rtd/src/*.c"
 )
