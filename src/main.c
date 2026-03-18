@@ -9,7 +9,9 @@
  *
  ******************************************************************************/
 
-#ifndef UNIT_TEST_BUILD
+#include <stdint.h>
+
+#if defined(S32K358) && !defined(UNIT_TEST_BUILD)
 
 #include "Mcu.h"
 
@@ -75,4 +77,34 @@ int main(void)
     }
 }
 
-#endif /* UNIT_TEST_BUILD */
+#else
+
+/* Host/test fallback path used by x86 builds and unit tests. */
+static volatile uint32_t g_loop_count = 0;
+
+void system_init(void)
+{
+    /* Host fallback: no hardware initialization required. */
+}
+
+void app_init(void)
+{
+    /* Host fallback: no peripheral/application setup required. */
+}
+
+void app_task(void)
+{
+    g_loop_count++;
+}
+
+#ifndef UNIT_TEST_BUILD
+int main(void)
+{
+    system_init();
+    app_init();
+    app_task();
+    return 0;
+}
+#endif
+
+#endif
