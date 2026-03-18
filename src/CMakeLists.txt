@@ -24,6 +24,24 @@ if(CMAKE_CROSSCOMPILING)
     set_target_properties(s32k3x_firmware PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     )
+
+    if(NOT CMAKE_OBJCOPY)
+        find_program(CMAKE_OBJCOPY arm-none-eabi-objcopy)
+    endif()
+
+    if(CMAKE_OBJCOPY)
+        add_custom_command(TARGET s32k3x_firmware POST_BUILD
+            COMMAND ${CMAKE_OBJCOPY} -O ihex
+                $<TARGET_FILE:s32k3x_firmware>
+                ${CMAKE_BINARY_DIR}/bin/s32k3x_firmware.hex
+            COMMAND ${CMAKE_OBJCOPY} -O binary
+                $<TARGET_FILE:s32k3x_firmware>
+                ${CMAKE_BINARY_DIR}/bin/s32k3x_firmware.bin
+            COMMENT "Generating HEX and BIN artifacts"
+        )
+    else()
+        message(WARNING "objcopy not found; HEX/BIN artifacts will not be generated")
+    endif()
 else()
     # Build application functions as a library (without main) for testing
     add_library(s32k3x_app OBJECT main.c)
