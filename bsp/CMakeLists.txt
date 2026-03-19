@@ -10,7 +10,12 @@ endif()
 
 set(S32DS_RTD_ROOT "$ENV{S32DS_RTD_ROOT}" CACHE PATH "Path to S32DS PlatformSDK_S32K3 RTD root")
 if(NOT S32DS_RTD_ROOT)
-	set(S32DS_RTD_ROOT "/mnt/c/NXP/S32DS.3.6.6/S32DS/software/PlatformSDK_S32K3/RTD")
+	message(FATAL_ERROR
+		"S32DS_RTD_ROOT is not set.\n"
+		"Set S32DS_RTD_ROOT environment variable or CMake cache entry to your RTD root.\n"
+		"Example (env): export S32DS_RTD_ROOT=/path/to/PlatformSDK_S32K3/RTD\n"
+		"Example (cmake): cmake -DS32DS_RTD_ROOT=/path/to/PlatformSDK_S32K3/RTD ..."
+	)
 endif()
 
 set(BASE_NXP_HEADER_DIR "${S32DS_RTD_ROOT}/BaseNXP_TS_T40D34M70I1R0/header")
@@ -114,7 +119,9 @@ target_compile_options(s32k3_bsp PRIVATE
 	-Werror=implicit-function-declaration
 )
 
-target_link_options(s32k3_bsp INTERFACE
+add_library(s32k3_linker_config INTERFACE)
+
+target_link_options(s32k3_linker_config INTERFACE
 	-mcpu=cortex-m7
 	-mthumb
 	-mlittle-endian

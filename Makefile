@@ -71,6 +71,7 @@ endif
 # Project Configuration
 PROJECT_NAME = s32k3x_firmware
 TARGET_MCU = S32K358
+S32DS_RTD_ROOT ?=
 
 # Toolchain Configuration
 TOOLCHAIN_PATH = /home/rashiqul/NXP/gcc-10.2-arm32-eabi/bin
@@ -349,9 +350,24 @@ build_all_tgt: pre-configure $(ARM_BIN_DIR) $(ARM_OBJ_DIR)
 	@echo "Configuring ARM build with CMake..."
 	@CONAN_GEN_DIR=$$(find $(ARM_BUILD_DIR) -name "conan_toolchain.cmake" -exec dirname {} \; | head -1); \
 	test -n "$$CONAN_GEN_DIR" || { echo "Error: conan_toolchain.cmake not found"; exit 1; }; \
+	RTD_ROOT_VALUE=""; \
+	if [ -n "$(S32DS_RTD_ROOT)" ]; then \
+		RTD_ROOT_VALUE="$(S32DS_RTD_ROOT)"; \
+	elif [ -n "$$S32DS_RTD_ROOT" ]; then \
+		RTD_ROOT_VALUE="$$S32DS_RTD_ROOT"; \
+	elif [ -d "/mnt/c/NXP/S32DS.3.6.6/S32DS/software/PlatformSDK_S32K3/RTD" ]; then \
+		RTD_ROOT_VALUE="/mnt/c/NXP/S32DS.3.6.6/S32DS/software/PlatformSDK_S32K3/RTD"; \
+		echo "Info: auto-detected S32DS_RTD_ROOT=$$RTD_ROOT_VALUE"; \
+	fi; \
+	if [ -z "$$RTD_ROOT_VALUE" ]; then \
+		echo "Error: S32DS_RTD_ROOT is not set."; \
+		echo "Set it via env, make variable, or CMake cache (e.g. make build_all_tgt S32DS_RTD_ROOT=/path/to/RTD)."; \
+		exit 1; \
+	fi; \
 	. $$CONAN_GEN_DIR/conanbuild.sh && \
 	poetry run cmake -S . -B $(ARM_BUILD_DIR) \
 		-DCMAKE_TOOLCHAIN_FILE=$$CONAN_GEN_DIR/conan_toolchain.cmake \
+		-DS32DS_RTD_ROOT="$$RTD_ROOT_VALUE" \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
 		-G Ninja
