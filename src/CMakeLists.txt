@@ -24,7 +24,7 @@ if(CMAKE_CROSSCOMPILING)
         -funsigned-bitfields
         -fno-common
     )
-    target_link_libraries(s32k3x_firmware PRIVATE s32k3_bsp)
+    target_link_libraries(s32k3x_firmware PRIVATE s32k3_bsp s32k3_linker_config)
     set_target_properties(s32k3x_firmware PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     )
