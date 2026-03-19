@@ -36,44 +36,37 @@ int main(void)
     Mcu_Init(&Mcu_Config);
 #endif
 
-    if (E_OK != Mcu_InitClock(McuClockSettingConfig_0))
-    {
+    if (E_OK != Mcu_InitClock(McuClockSettingConfig_0)) {
         result = FALSE;
     }
 
 #if (MCU_NO_PLL == STD_OFF)
-    while (MCU_PLL_LOCKED != Mcu_GetPllStatus())
-    {
+    while (MCU_PLL_LOCKED != Mcu_GetPllStatus()) {
         /* Busy wait until PLL lock. */
     }
 
-    if (E_OK != Mcu_DistributePllClock())
-    {
+    if (E_OK != Mcu_DistributePllClock()) {
         result = FALSE;
     }
 #endif
 
     Mcu_SetMode(McuModeSettingConf_0);
 
-    if (FALSE == clock_frequency_matches(CLOCKOUT_FREQ_CFG_0))
-    {
+    if (FALSE == clock_frequency_matches(CLOCKOUT_FREQ_CFG_0)) {
         result = FALSE;
     }
 
-    if (E_OK != Mcu_InitClock(McuClockSettingConfig_1))
-    {
+    if (E_OK != Mcu_InitClock(McuClockSettingConfig_1)) {
         result = FALSE;
     }
 
-    if (FALSE == clock_frequency_matches(CLOCKOUT_FREQ_CFG_1))
-    {
+    if (FALSE == clock_frequency_matches(CLOCKOUT_FREQ_CFG_1)) {
         result = FALSE;
     }
 
     g_clock_validation_result = (TRUE == result) ? 1U : 0U;
 
-    while (1)
-    {
+    while (1) {
     }
 }
 
